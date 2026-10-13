@@ -1,0 +1,14 @@
+# Minecraft 26.3 API printed by the Check branch workflow (see .github/workflows/check.yml).
+net.minecraft.world.level.NaturalSpawner
+net.minecraft.server.level.ServerChunkCache
+net.minecraft.world.level.storage.loot.parameters.LootContextParams
+net.minecraft.world.level.storage.loot.parameters.LootContextParamSets
+net.minecraft.world.level.storage.loot.LootParams$Builder
+net.minecraft.world.item.enchantment.EnchantmentHelper
+net.minecraft.world.item.enchantment.Enchantments
+net.minecraft.world.entity.Mob
+net.minecraft.world.level.gamerules.GameRules
+data/minecraft/tags/worldgen/biome/has_structure/village_plains.json
+data/minecraft/tags/worldgen/biome/has_structure/village_taiga.json
+data/minecraft/tags/worldgen/biome/has_structure/village_snowy.json
+data/minecraft/loot_table/entities/spider.json

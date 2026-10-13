@@ -1,6 +1,8 @@
 package dev.skycraft.loot;
 
 import dev.skycraft.SkyCraft;
+import dev.skycraft.combat.SkyCombat;
+import dev.skycraft.combat.SkyrimActorEntity;
 import dev.skycraft.config.Config;
 import dev.skycraft.config.Features;
 import dev.skycraft.link.Proto;
@@ -13,23 +15,40 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.UUID;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.EnchantmentTags;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.world.level.storage.loot.LootParams;
+import net.minecraft.world.level.storage.loot.LootTable;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
+import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
 
 /**
- * Skyrim creatures the player kills drop Minecraft items (meat, leather, bones) at their feet.
+ * Skyrim creatures the player kills drop Minecraft items at their feet, the way Minecraft's mobs do.
  *
  * <p>Skyrim already reports every nearby actor's name and dead flag each frame. A drop happens
  * when an actor seen alive turns dead within {@link #HIT_WINDOW_TICKS} of the player's last hit on
  * it, so corpses walked up to and kills by others drop nothing. Each actor drops at most once,
  * except creatures SkyCraft spawned itself: Skyrim reuses the form ids of deleted ones, so a
  * spawned creature seen alive is always a new one.
- * What drops comes from {@code config/skycraft-loot.txt} (see {@link LootRules}). Server thread only.
+ * What drops comes from {@code config/skycraft-loot.txt} (see {@link LootRules}): a rule's vanilla
+ * loot tables are rolled as the death of the creature's stand-in at the hands of its killer, so
+ * vanilla's counts, chances, Looting, kill-only drops and cooked meat all apply; its own drops get
+ * the same Looting and cooking. Server thread only.
  */
 public final class SkyLoot {
 	/** 10 seconds: a kill by bleeding, fire or a follow-up arrow still counts as the player's. */
@@ -38,6 +57,8 @@ public final class SkyLoot {
 
 	private static final Map<Integer, Boolean> WAS_DEAD = new HashMap<>();
 	private static final Map<Integer, Integer> LAST_HIT = new HashMap<>();
+	/** The last player whose attack reached each actor's stand-in: the kill is theirs. */
+	private static final Map<Integer, UUID> HITTER = new HashMap<>();
 	private static final Set<Integer> LOOTED = new HashSet<>();
 	/** Form ids in the latest actor table; reused every tick. */
 	private static final Set<Integer> SEEN = new HashSet<>();
@@ -50,11 +71,17 @@ public final class SkyLoot {
 	/** The player landed a hit on this actor on this server tick. */
 	public static void recordHit(int formId, int tick) {
 		LAST_HIT.put(formId, tick);
+		SkyrimActorEntity proxy = SkyCombat.proxy(formId);
+		UUID by = proxy != null ? proxy.lastPlayerHit() : null;
+		if (by != null) {
+			HITTER.put(formId, by);
+		}
 	}
 
 	public static void reset() {
 		WAS_DEAD.clear();
 		LAST_HIT.clear();
+		HITTER.clear();
 	}
 
 	/** Called with each fresh read of Skyrim's actor table. */
@@ -75,11 +102,13 @@ public final class SkyLoot {
 			if ((a.flags() & Proto.ACTOR_SPAWNED) == 0) {
 				LOOTED.add(id);
 			}
+			// A credited kill. Everything it pays out goes to the same killer, and the dead creature's
+			// stand-in is still there for this tick (SkyCombat.sync discards it after us).
+			ServerPlayer killer = killer(level, a);
 			if (Features.on(Features.Feature.KILL_XP)) {
 				// Straight into the killer's XP bar: orbs dropped at a Skyrim corpse can land under the terrain or
 				// out of reach, and SkyCraft doesn't draw them well.
 				int xp = KillXp.forLevel(a.level());
-				net.minecraft.world.entity.player.Player killer = level.getNearestPlayer(a.x(), a.y(), a.z(), 96.0, false);
 				if (killer != null) {
 					killer.giveExperiencePoints(xp);
 					level.playSound(null, killer.getX(), killer.getY(), killer.getZ(), net.minecraft.sounds.SoundEvents.EXPERIENCE_ORB_PICKUP,
@@ -88,47 +117,141 @@ public final class SkyLoot {
 				SkyCraft.LOG.info("SkyCraft-loot: killed {} (level {}), {} XP{}", a.name(), a.level(), xp, killer != null ? " to " + killer.getName().getString() : "");
 			}
 			if (Features.on(Features.Feature.KILL_DROPS)) {
-				drop(level, a);
+				drop(level, a, killer);
 			}
 		}
 		// An actor the player just hit is remembered alive while it's briefly out of the table (out
 		// of range, Skyrim's table emptied for a frame), so dying there still counts.
 		WAS_DEAD.keySet().removeIf(id -> !SEEN.contains(id) && !LAST_HIT.containsKey(id));
 		if (!LAST_HIT.isEmpty() && tick % 20 == 0) {
-			for (Iterator<Integer> it = LAST_HIT.values().iterator(); it.hasNext(); ) {
-				if (tick - it.next() > HIT_WINDOW_TICKS * 3) {
+			for (Iterator<Map.Entry<Integer, Integer>> it = LAST_HIT.entrySet().iterator(); it.hasNext(); ) {
+				Map.Entry<Integer, Integer> e = it.next();
+				if (tick - e.getValue() > HIT_WINDOW_TICKS * 3) {
+					HITTER.remove(e.getKey());
 					it.remove();
 				}
 			}
 		}
 	}
 
-	private static void drop(ServerLevel level, SkyLink.Actor a) {
+	/**
+	 * Who killed this actor: the last player whose attack reached its stand-in (melee, their arrow,
+	 * their trident), else the nearest player within 96 blocks of the corpse, else the host; null with
+	 * nobody there. For a credited kill in {@link #onActors}, where the dead actor's stand-in still exists.
+	 */
+	public static @Nullable ServerPlayer killer(ServerLevel level, SkyLink.Actor a) {
+		UUID by = HITTER.get(a.formId());
+		if (by == null) {
+			SkyrimActorEntity proxy = SkyCombat.proxy(a.formId());
+			by = proxy != null ? proxy.lastPlayerHit() : null;
+		}
+		ServerPlayer hitter = by != null ? level.getServer().getPlayerList().getPlayer(by) : null;
+		if (hitter != null && hitter.level() == level) {
+			return hitter;
+		}
+		if (level.getNearestPlayer(a.x(), a.y(), a.z(), 96.0, false) instanceof ServerPlayer nearest) {
+			return nearest;
+		}
+		for (ServerPlayer player : level.getServer().getPlayerList().getPlayers()) {
+			if (dev.skycraft.net.SkyNet.isHost(player)) {
+				return player;
+			}
+		}
+		return null;
+	}
+
+	/** The Looting level of what {@code player} holds, as vanilla's loot functions read it off the killer. */
+	public static int lootingLevel(ServerPlayer player) {
+		var looting = player.level().registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.LOOTING);
+		return EnchantmentHelper.getEnchantmentLevel(looting, player);
+	}
+
+	private static void drop(ServerLevel level, SkyLink.Actor a, @Nullable ServerPlayer killer) {
 		LootRules.Rule rule = rules().match(a.name());
 		if (rule == null) {
 			SkyCraft.LOG.info("SkyCraft-loot: killed {}, no drop rule for that name", a.name());
 			return;
 		}
-		List<String> dropped = new ArrayList<>();
-		for (LootRules.Drop d : LootRules.roll(rule, RANDOM)) {
-			Identifier key = Identifier.tryParse(d.item());
+		// The loot tables read the stand-in as the mob that died: on fire if the kill set it alight.
+		SkyrimActorEntity proxy = SkyCombat.proxy(a.formId());
+		if (proxy != null && (proxy.isRemoved() || proxy.level() != level)) {
+			proxy = null;
+		}
+		Vec3 corpse = new Vec3(a.x(), a.y() + 0.5, a.z());
+		List<ItemStack> stacks = new ArrayList<>();
+		for (String table : rule.tables()) {
+			stacks.addAll(rollTable(level, table, a, proxy, killer, corpse));
+		}
+		// Meat comes out cooked from a creature that died burning or to a Fire Aspect weapon, as vanilla's
+		// furnace_smelt has it (the tables do this themselves).
+		boolean cook = proxy != null && proxy.isOnFire() || killer != null && EnchantmentHelper.hasTag(killer.getMainHandItem(), EnchantmentTags.SMELTS_LOOT);
+		int looting = killer != null ? lootingLevel(killer) : 0;
+		for (LootRules.Drop d : LootRules.roll(rule, looting, RANDOM)) {
+			Identifier key = Identifier.tryParse(cook ? LootRules.cooked(d.item()) : d.item());
 			Item item = key != null ? BuiltInRegistries.ITEM.getValue(key) : null;
 			if (item == null || item == Items.AIR) {
 				SkyCraft.LOG.warn("SkyCraft-loot: unknown item '{}' in {}", d.item(), FILE);
 				continue;
 			}
-			ItemEntity entity = new ItemEntity(level, a.x(), a.y() + 0.5, a.z(), new ItemStack(item, d.min()));
-			entity.setDefaultPickUpDelay();
-			level.addFreshEntity(entity);
-			dropped.add(d.min() + " " + d.item());
+			stacks.add(new ItemStack(item, d.min()));
 		}
-		SkyCraft.LOG.info("SkyCraft-loot: killed {}, dropped {}", a.name(), dropped.isEmpty() ? "nothing this time" : String.join(", ", dropped));
+		List<String> dropped = new ArrayList<>();
+		for (ItemStack stack : stacks) {
+			if (stack.isEmpty()) {
+				continue;
+			}
+			dropped.add(stack.getCount() + " " + BuiltInRegistries.ITEM.getKey(stack.getItem()));
+			while (!stack.isEmpty()) {
+				// A count past a full stack (64 and Looting on top) drops as several stacks.
+				ItemEntity entity = new ItemEntity(level, corpse.x, corpse.y, corpse.z, stack.split(stack.getMaxStackSize()));
+				entity.setDefaultPickUpDelay();
+				level.addFreshEntity(entity);
+			}
+		}
+		SkyCraft.LOG.info("SkyCraft-loot: killed {}, dropped {}{}", a.name(), dropped.isEmpty() ? "nothing this time" : String.join(", ", dropped),
+			looting > 0 ? " (Looting " + looting + ")" : "");
+	}
+
+	/**
+	 * Rolls a vanilla entity loot table as the death of the creature's stand-in at the hands of
+	 * {@code killer}, so vanilla does the counts, chances, Looting, kill-only drops (spider eyes) and
+	 * cooked meat. Nothing for an unknown table.
+	 */
+	private static List<ItemStack> rollTable(ServerLevel level, String table, SkyLink.Actor a, @Nullable SkyrimActorEntity proxy, @Nullable ServerPlayer killer,
+		Vec3 corpse) {
+		Identifier id = Identifier.tryParse(table);
+		LootTable loot = id != null ? level.getServer().reloadableRegistries().getLootTable(ResourceKey.create(Registries.LOOT_TABLE, id)) : LootTable.EMPTY;
+		if (loot == LootTable.EMPTY) {
+			SkyCraft.LOG.warn("SkyCraft-loot: unknown loot table '{}' in {}", table, FILE);
+			return List.of();
+		}
+		Entity self = proxy;
+		if (self == null) {
+			// Its stand-in went before the death was seen (it died out of the table): roll as a fresh
+			// one at the corpse, never added to the world, so not burning.
+			SkyrimActorEntity stand = new SkyrimActorEntity(SkyCombat.SKYRIM_ACTOR, level);
+			stand.snapTo(a.x(), a.y(), a.z(), a.yaw(), 0.0F);
+			self = stand;
+			SkyCraft.LOG.info("SkyCraft-loot: {} has no stand-in left, rolling {} for a fresh one", a.name(), table);
+		}
+		LootParams.Builder params = new LootParams.Builder(level).withParameter(LootContextParams.THIS_ENTITY, self)
+			.withParameter(LootContextParams.ORIGIN, corpse);
+		if (killer != null) {
+			params.withParameter(LootContextParams.DAMAGE_SOURCE, level.damageSources().playerAttack(killer))
+				.withParameter(LootContextParams.ATTACKING_ENTITY, killer)
+				.withParameter(LootContextParams.DIRECT_ATTACKING_ENTITY, killer)
+				.withParameter(LootContextParams.LAST_DAMAGE_PLAYER, killer)
+				.withLuck(killer.getLuck());
+		} else {
+			params.withParameter(LootContextParams.DAMAGE_SOURCE, level.damageSources().generic());
+		}
+		return loot.getRandomItems(params.create(LootContextParamSets.ENTITY));
 	}
 
 	private static LootRules rules() {
 		if (rules == null) {
 			List<String> problems = new ArrayList<>();
-			rules = LootRules.parse(Config.read(FILE, LootRules.DEFAULT_TEXT), problems);
+			rules = LootRules.parse(Config.read(FILE, LootRules.DEFAULT_TEXT, LootRules.OLD_DEFAULTS), problems);
 			problems.forEach(p -> SkyCraft.LOG.warn("SkyCraft-loot: {} {}", FILE, p));
 			SkyCraft.LOG.info("SkyCraft-loot: {} drop rules loaded", rules.rules().size());
 		}

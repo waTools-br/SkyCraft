@@ -13,7 +13,7 @@ import java.util.Map;
  */
 public final class Features {
 	public enum Feature {
-		KILL_DROPS("kill_drops", "Skyrim animals you kill drop Minecraft items (skycraft-loot.txt)"),
+		KILL_DROPS("kill_drops", "Skyrim creatures you kill drop Minecraft items as their Minecraft counterparts would, Looting included (skycraft-loot.txt)"),
 		KILL_XP("kill_xp", "Skyrim kills drop Minecraft XP orbs"),
 		ITEM_CONVERSION("item_conversion", "loot picked up in Skyrim becomes Minecraft items (skycraft-items.txt)"),
 		DUNGEON_CHESTS("dungeon_chests", "first loot of a dungeon chest also rolls a Minecraft chest (skycraft-dungeons.txt)"),

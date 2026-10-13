@@ -4,6 +4,8 @@ What the default rules in `skycraft-items.txt` (`ItemRules.DEFAULT_TEXT`) turn S
 
 An existing `config/skycraft-items.txt` keeps its old rules: delete it (or merge by hand) to get these.
 
+[Creature drops](#creature-drops) (`skycraft-loot.txt`) are at the end.
+
 ## Items
 
 163 new rules. Each one takes an item that used to stay in Skyrim (191 real item names in all). They sit where no earlier rule can take their items and they can't take an earlier rule's items: tagged rules join their sections, and the household rules come last, after a block of `keep` rules for gear, clothing, jewelry, potions, raw food and ingredients.
@@ -289,3 +291,109 @@ A range runs from tier 0 to tier 5 in proportion, rounded: levels I to III are I
 Staying in Skyrim: The White Phial (it refills), Lotus Extract and Nightshade Extract (quest poisons), Unknown Potion, and drinks without a vendor keyword (Skooma, Potion of Blood, Falmer Blood Elixir).
 
 Crafted potion names longer than 27 letters arrive cut ("Potion of Fortify Two-hande"); SkyCraft gives back the whole name from `ItemRules.LONG_NAMES` for both the rules and the Minecraft potion's name. The three crafted Lingering Damage poisons share their first 27 letters, so they stay cut and count as Lingering Damage Health.
+
+## Creature drops
+
+What Skyrim creatures drop as Minecraft items when you kill them: the default rules in `skycraft-loot.txt` (`LootRules.DEFAULT_TEXT`), matched by the words of the creature's Skyrim name, first matching line first. They follow Minecraft's own mobs: a creature with a Minecraft counterpart rolls that mob's loot table, and the others drop in the same spirit and amounts. Only bosses (dragons, dragon priests, Alduin) give more than a Minecraft mob would. These come on top of whatever Skyrim leaves on the corpse, which item conversion turns into Minecraft items when you loot it.
+
+A drop is one of:
+
+| Rule | Means |
+|---|---|
+| `item 0-2` | 0 to 2 of it; `item 2` is exactly 2, `item` alone 1. Looting adds 0 to 1 per level, as Minecraft's `enchanted_count_increase` does |
+| `item 1 2.5%` | One, 2.5% of the time. Looting adds 1% per level, as Minecraft's rare drops (`random_chance_with_enchanted_bonus`): 3.5% with Looting I, 5.5% with III |
+| `table minecraft:entities/spider` | Minecraft's spider loot table, rolled as if you had killed a spider: the dead creature's stand-in is the mob, you are the killer. Minecraft then does the counts, chances, Looting, kill-only drops (spider eyes, blaze rods) and cooked meat |
+
+Raw meat and fish come out cooked when the creature died burning or to a Fire Aspect weapon, as in Minecraft. Every kill credited to you pays out (a kill is yours when you hit the creature in its last 10 seconds), so "your kill only" drops always count.
+
+An existing `config/skycraft-loot.txt` that still holds the old default rules, unedited, is replaced with these the first time it's read, and the old file is kept as `skycraft-loot.txt.old`. A file you edited stays as it is: delete it, or merge by hand, to get these.
+
+Counts below are without Looting. Tables were read from Minecraft 26.3.
+
+### Dragons
+
+| Creature | Drops | Why |
+|---|---|---|
+| Alduin | dragon head, 2-4 netherite scrap, 3-6 diamonds, 4-8 gold ingots, 8-12 bones, 2-4 dragon's breath | The World-Eater, killed once: a trophy and a hoard |
+| Ancient Dragon, Legendary Dragon, Paarthurnax, Odahviing, Durnehviir, Vulthuryol, Viinturuth, Kruziikrel, Sahrotaar | 5-10 bones, 2-3 phantom membrane, 1-3 dragon's breath, 2-5 gold ingots, 1-3 diamonds, netherite scrap 33%, dragon head 20% | The oldest dragons pay best. Bone and wing membrane from the body, Minecraft's dragon's breath, a dragon's hoard; dragon bone and scale make Skyrim's best armor, so the rare extra is netherite |
+| Elder Dragon, Revered Dragon, Nahagliiv, Vuljotnaak, Voslaarum, Naaslaarum | 4-8 bones, 1-3 phantom membrane, 1-2 dragon's breath, 2-4 gold ingots, 1-2 diamonds, netherite scrap 20%, dragon head 10% | The middle tier |
+| Dragon, Blood Dragon, Frost Dragon, Serpentine Dragon, Mirmulnir, Sahloknir | 3-6 bones, 1-2 phantom membrane, 0-2 dragon's breath, 1-3 gold ingots, 0-1 diamond, netherite scrap 10%, dragon head 5% | Still a boss fight; dragons come often, so the rare drops stay rare |
+| Skeletal Dragon | 6-12 bones, 1-2 bone blocks, 1-3 gold ingots, 0-1 diamond, netherite scrap 10% | All bone, no flesh or wings |
+| Dragon Priest, and the named ones (Krosis, Morokei, Hevnoraak, Nahkriin, Otar, Rahgot, Vokun, Volsung, Ahzidal, Dukaan, Zahkriisos) | Minecraft's evoker (totem of undying, 0-1 emerald), 1-3 bones, 1-3 gold ingots | Undead liches and dungeon bosses: the evoker's totem is a lich's phylactery |
+
+### Undead and Daedra
+
+| Creature | Drops | Why |
+|---|---|---|
+| Ghost, Spectral Draugr and other spectral things, Shade, Mistman | Minecraft's phantom (0-1 phantom membrane) | Undead flyers; ectoplasm is phantom membrane in item conversion |
+| Draugr Deathlord, Draugr Overlord (and Death Overlord), Draugr Scourge, Draugr Wight Lord | Minecraft's husk (0-2 rotten flesh, 2.5% iron ingot, carrot or potato), 0-2 bones, 0-3 gold nuggets | Husks are Minecraft's dried dead; the strong draugr guard their tomb's gold |
+| Draugr, Restless Draugr, Draugr Wight | Minecraft's husk, 0-1 bone | As above |
+| Skeleton, Bonewalker, Boneman | Minecraft's skeleton (0-2 arrows, 0-2 bones) | The same creature |
+| Wrathman | Minecraft's wither skeleton (coal, 0-2 bones, 2.5% wither skeleton skull) | The Soul Cairn's dark skeleton warriors |
+| Ash Spawn | 0-2 bones, 0-2 charcoal | Risen from burnt ash |
+| Flame Atronach (and Thrall) | Minecraft's blaze (0-1 blaze rod) | Minecraft's fire elemental; fire salts are blaze powder |
+| Storm Atronach (and Thrall) | Minecraft's breeze (1-2 breeze rods) | Minecraft's storm elemental |
+| Frost Atronach (and Thrall) | 0-1 packed ice, 0-3 snowballs | Minecraft has no ice elemental: frost salts are packed ice in item conversion |
+| Seeker | Minecraft's squid (1-3 ink sacs) | Hermaeus Mora's floating tentacled things |
+| Lurker | Minecraft's guardian (0-2 prismarine shards, cod or prismarine crystals, 2.5% a fish), 0-2 ink sacs | Hermaeus Mora's sea monsters |
+
+### Dwemer, arthropods and Falmer
+
+| Creature | Drops | Why |
+|---|---|---|
+| Dwarven Centurion | 2-4 dwarven metal ingots, 1-3 redstone, redstone block 25% | Built of dwarven metal (SkyCraft's ingot) and run on power, like an iron golem's 3-5 iron; the dynamo core is a redstone block in item conversion |
+| Dwarven Ballista | 1-2 dwarven metal ingots, 0-2 redstone, 0-3 arrows | It shoots bolts |
+| Dwarven Sphere | 1-2 dwarven metal ingots, 0-2 redstone, amethyst shard 10% | Its soul gem; a soul gem fragment is an amethyst shard in item conversion |
+| Dwarven Spider and any other Dwemer machine | 0-1 dwarven metal ingot, 0-1 redstone | Small. Before the spider line, so it's a machine, not a spider |
+| Chaurus Hunter (and Fledgling) | Minecraft's spider, 0-1 phantom membrane, turtle scute 25% | A flying chaurus: wings |
+| Chaurus, Chaurus Reaper | Minecraft's spider (0-2 string, 0-1 spider eye when you made the kill), turtle scute 25% | Spider-like, with a chitin shell; chaurus chitin is turtle scute in item conversion |
+| Giant Frostbite Spider | Minecraft's spider, 1-3 string | A bigger spider spins more |
+| Frostbite Spider, Albino Spider | Minecraft's spider | The feedback's example: string and spider eyes at Minecraft's rates |
+| Ash Hopper | 0-1 slime ball, 0-1 string | A big insect; ash hopper jelly is a slime ball in item conversion |
+| Falmer Gloomlurker, Shadowmaster, Nightprowler, Warmonger | 1-2 sculk, 0-1 rotten flesh, echo shard 5%, sculk catalyst 5% | The Forgotten Vale's strongest Falmer |
+| Falmer (all the others) | 0-1 sculk, 0-1 rotten flesh, echo shard 2.5% | Blind, hunting by sound under the earth like the Warden; a Falmer ear is rotten flesh in item conversion. Their gear is the NPC gear drop's |
+
+### Spirits, beasts and monsters
+
+| Creature | Drops | Why |
+|---|---|---|
+| Burnt Spriggan | 0-2 charcoal, 0-1 stick | Burnt wood |
+| Spriggan, Spriggan Matron, Spriggan Earth Mother | 0-2 sticks, 0-1 resin clump | Tree spirits; spriggan sap is a resin clump in item conversion |
+| Hagraven | Minecraft's witch (1-3 of glowstone dust, sugar, spider eye, glass bottle, gunpowder and sticks, 4-8 redstone), 0-2 feathers | Minecraft's witch, with a hagraven's feathers |
+| Wispmother | 0-2 glowstone dust, 0-2 string | Glow dust and wisp wrappings, as item conversion has them |
+| Wisp | 0-1 glowstone dust | It glows |
+| Ice Wraith | 0-1 bone, 0-3 snowballs | Ice wraith teeth are bone |
+| Armored Troll, Armored Frost Troll | Minecraft's ravager (a saddle), 0-2 slime balls, 0-2 bones | War beasts in harness, like the ravager |
+| Frost Troll | 0-2 slime balls, 0-2 leather, 0-2 snowballs | Troll fat is a slime ball in item conversion |
+| Troll | 0-2 slime balls, 0-2 leather, 0-1 bone | As above |
+| Werewolf | 0-2 leather, 0-2 bones, 0-1 rotten flesh | Hide and bone |
+| Werebear | 1-3 leather, 0-2 bones, 0-1 rotten flesh | A bigger hide |
+| Vampire Lord, Harkon | 1-3 gunpowder, 0-2 phantom membrane | Vampire dust is gunpowder in item conversion; wings |
+| Death Hound | 0-2 rotten flesh, 0-1 bone | Undead dogs |
+| Gargoyle | 0-2 cobblestone, 0-1 flint | Living stone |
+| Giant, Frost Giant, Karstaag | 0-2 leather, 1-3 bones, 0-2 rotten flesh, 0-4 gold nuggets | Last of all, so Giant Frostbite Spider and Giant Mudcrab match their own lines first; a giant's toe is rotten flesh in item conversion |
+
+### Animals
+
+| Creature | Drops | Why |
+|---|---|---|
+| Mammoth | 2-5 beef, 1-3 leather, 1-2 bones | More of a cow's beef and hide, and tusk bone |
+| Sabre Cat, Snowy Sabre Cat, Vale Sabre Cat | 0-2 leather, 0-1 bone | Hide and tooth |
+| Bear, Cave Bear, Snow Bear | Minecraft's polar bear (0-2 cod or salmon), 0-2 leather | Minecraft's bear, with the pelt |
+| Wolf, Ice Wolf | 0-2 bones, 0-1 leather | Minecraft's wolves drop nothing, so they keep their pelt and bones |
+| Cow, Highland Cow, Deer, Vale Deer, Elk | Minecraft's cow (0-2 leather, 1-3 beef) | The cow is Minecraft's deer |
+| Chicken | Minecraft's chicken (0-2 feathers, 1 chicken) | The same animal |
+| Horse | Minecraft's horse (0-2 leather) | The same animal |
+| Hare | Minecraft's rabbit (0-1 rabbit hide, 1 rabbit, rabbit's foot 10%) | The same animal |
+| Bristleback (and Boar) | Minecraft's hoglin (2-4 porkchops, 0-1 leather) | Minecraft's boar |
+| Goat | 1-2 mutton, 0-1 leather | Minecraft's goats drop nothing: a sheep's mutton and the hide |
+| Fox | 0-2 rabbit hide | Minecraft's foxes drop nothing: a small pelt |
+| Horker | 1-3 beef, 0-2 bones | Horker meat is beef and a tusk two bones in item conversion |
+| Mudcrab, Giant Mudcrab | 0-2 cod, turtle scute 10% | Legs as fish, now and then the chitin |
+| Slaughterfish | Minecraft's salmon (1 salmon, bone meal 5%) | A fish; slaughterfish scales are bone meal in item conversion |
+| Netch, Bull Netch, Betty Netch | 0-2 leather, 0-2 slime balls | Netch leather and netch jelly |
+| Venomfang Skeever | 0-1 rotten flesh, 0-1 rabbit hide, spider eye 25% | A poisonous skeever |
+| Skeever | 0-1 rotten flesh, 0-1 rabbit hide | A skeever tail is rotten flesh in item conversion; a small hide |
+| Riekling | 0-1 bone, 0-1 leather | Small and tribal; their spears are the NPC gear drop's |
+
+Creatures that match no rule drop nothing, so people and armed Daedra (bandits, guards, Forsworn, vampires, Dremora) never get creature drops; their gear is a separate feature. Dogs drop nothing either, as in Minecraft.

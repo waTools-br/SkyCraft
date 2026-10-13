@@ -1,6 +1,7 @@
 package dev.skycraft.combat;
 
 import dev.skycraft.link.Proto;
+import java.util.UUID;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -43,6 +44,9 @@ public class SkyrimActorEntity extends LivingEntity {
 
 	// The actor's Skyrim name (server side), without what the stand-in's own name adds to it ("(tamed)").
 	private String skyrimName = "";
+	// The last player whose attack reached us (melee, their arrow or trident), server side: the kill and
+	// its loot are theirs (loot.SkyLoot.killer).
+	private @Nullable UUID lastPlayerHit;
 
 	// This tick's hit, flushed to Skyrim by SkyCombat after all attacks for the tick have landed
 	// (Player.attack adds its sprint/enchantment knockback after hurtServer returns).
@@ -88,6 +92,11 @@ public class SkyrimActorEntity extends LivingEntity {
 	/** The actor's Skyrim name, as the actor table has it. */
 	public String skyrimName() {
 		return this.skyrimName.isEmpty() ? this.getName().getString() : this.skyrimName;
+	}
+
+	/** The last player whose attack reached this stand-in, or null if no player has hit it. */
+	public @Nullable UUID lastPlayerHit() {
+		return this.lastPlayerHit;
 	}
 
 	/** Its Skyrim name, and the stand-in's own name ({@code shown}: the Skyrim name, or "Meeko (tamed)"), when they change. */
@@ -167,6 +176,9 @@ public class SkyrimActorEntity extends LivingEntity {
 			return;
 		}
 		this.pendingDamage += dmg;
+		if (source.getEntity() instanceof Player player) {
+			this.lastPlayerHit = player.getUUID();
+		}
 		if (source.getDirectEntity() instanceof Projectile) {
 			this.pendingFlags |= Proto.HIT_PROJECTILE;
 		}

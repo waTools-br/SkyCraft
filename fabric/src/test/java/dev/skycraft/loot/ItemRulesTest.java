@@ -745,4 +745,35 @@ class ItemRulesTest {
 		assertEquals("minecraft:amethyst_shard 1", convert(rules, tags("gem"), 0, CONTAINER, "Soul Gem Fragment"));
 		assertEquals("soulgem,filled", ItemRules.tagNames(tags("soulgem", "filled")));
 	}
+
+	@Test
+	void gearCanKeepItsEnchantmentAndName() {
+		List<String> problems = new ArrayList<>();
+		ItemRules rules = ItemRules.parse("""
+			tag weapon name razor = skycraft:daedric_sword{sharpness:3 + fire_aspect:1 "Mehrunes' Razor"} 1
+			tag weapon name inferno = skycraft:ebony_sword{fire_aspect:2} 1 + minecraft:blaze_powder 1
+			tag book name flames = minecraft:enchanted_book{flame:1} 1
+			""", problems);
+		assertTrue(problems.isEmpty(), problems.toString());
+		ItemRules.Result razor = rules.match(new ItemRules.Item(tags("weapon"), material("daedric"), CORPSE, "Mehrunes' Razor"));
+		assertEquals("skycraft:daedric_sword", razor.item());
+		assertEquals(List.of(new ItemRules.Enchant("sharpness", 3), new ItemRules.Enchant("fire_aspect", 1)), razor.enchantments());
+		assertEquals("Mehrunes' Razor", razor.name());
+		assertEquals("skycraft:ebony_sword{fire_aspect:2} 1 + minecraft:blaze_powder 1",
+			rules.match(new ItemRules.Item(tags("weapon"), material("ebony"), BOUGHT, "Ebony Sword of the Inferno")).describe());
+		assertEquals(List.of(new ItemRules.Enchant("flame", 1)), rules.match(new ItemRules.Item(tags("book"), 0, WORLD, "Spell Tome: Flames")).enchantments());
+	}
+
+	@Test
+	void badEnchantmentsAreReported() {
+		for (String bad : List.of("name a = skycraft:iron_sword{zap:1} 1", "name a = skycraft:iron_sword{sharpness:0} 1",
+			"name a = skycraft:iron_sword{sharpness:11} 1", "name a = skycraft:iron_sword{speed:0:60} 1", "name a = skycraft:iron_sword{} 1",
+			"name a = minecraft:potion{sharpness:2} 1")) {
+			List<String> problems = new ArrayList<>();
+			ItemRules rules = ItemRules.parse(bad, problems);
+			assertEquals(0, rules.size(), bad);
+			assertEquals(1, problems.size(), bad + " " + problems);
+		}
+		assertEquals(43, ItemRules.ENCHANTMENTS.size());
+	}
 }

@@ -73,12 +73,19 @@ public final class SkyCombat {
 		List<ServerPlayer> players = server.getPlayerList().getPlayers();
 		if (!SkyLink.active() || players.isEmpty()) {
 			removeAll();
+			dev.skycraft.time.SkyTime.reset();
 			return;
 		}
 		// Minecraft view: the host is away from the Skyrim mirror (the Nether, ...). Skyrim's world waits
-		// for them: no stand-ins, loot, item bridge, time, breaches or creatures until they're back.
+		// for them: no stand-ins, loot, item bridge, breaches or creatures until they're back. Time goes on:
+		// Tamriel Wilds and Home keep the mirror's clock, so day and night follow Skyrim's there too.
 		if (!dev.skycraft.SkyDimension.inMirror(players.getFirst())) {
 			removeAll();
+			for (ServerPlayer player : players) {
+				if (dev.skycraft.net.SkyNet.isHost(player)) {
+					dev.skycraft.time.SkyTime.tick(server, player);
+				}
+			}
 			return;
 		}
 		ServerLevel level = players.getFirst().level();
@@ -199,7 +206,6 @@ public final class SkyCombat {
 
 	private static void removeAll() {
 		dev.skycraft.loot.SkyLoot.reset();
-		dev.skycraft.time.SkyTime.reset();
 		dev.skycraft.deep.SkyDeep.reset();
 		dev.skycraft.breach.SkyBreach.reset();
 		dev.skycraft.companion.SkyCompanions.reset();

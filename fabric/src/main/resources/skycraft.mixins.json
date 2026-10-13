@@ -19,9 +19,12 @@
     "PressurePlateMixin",
     "ProjectileMixin",
     "ProjectileUtilMixin",
+    "ServerChunkCacheSpawnMixin",
     "ServerExplosionMixin",
+    "ServerLevelSpawnMixin",
     "ServerPlayerMixin",
-    "SmithingMixin"
+    "SmithingMixin",
+    "TrialSpawnerMixin"
   ],
   "injectors": { "defaultRequire": 1 }
 }

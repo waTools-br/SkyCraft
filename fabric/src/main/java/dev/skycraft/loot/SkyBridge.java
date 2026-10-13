@@ -12,8 +12,10 @@ import java.util.stream.Collectors;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -23,6 +25,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.Potion;
 import net.minecraft.world.item.alchemy.PotionContents;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
 
 /**
  * Looting bridge, Minecraft side. Skyrim reports every item that lands in the player's Skyrim
@@ -70,6 +73,24 @@ public final class SkyBridge {
 			stack.set(DataComponents.CUSTOM_NAME, Component.literal(name).withStyle(style -> style.withItalic(false)));
 		}
 		return stack;
+	}
+
+	/**
+	 * Puts a rule's enchantments on {@code stack}, the way an enchanting table would (an enchanted book stores them):
+	 * Skyrim gear that kept its enchantment. One Minecraft doesn't know is left off, with a warning.
+	 */
+	static void enchant(ItemStack stack, List<ItemRules.Enchant> enchants, ServerPlayer player, String skyrimName) {
+		if (enchants.isEmpty()) {
+			return;
+		}
+		var registry = player.level().registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
+		EnchantmentHelper.updateEnchantments(stack, mutable -> {
+			for (ItemRules.Enchant e : enchants) {
+				registry.get(ResourceKey.create(Registries.ENCHANTMENT, Identifier.withDefaultNamespace(e.id())))
+					.ifPresentOrElse(holder -> mutable.set(holder, e.level()),
+						() -> SkyCraft.LOG.warn("SkyCraft-loot: unknown enchantment '{}' in {}, {} converts without it", e.id(), FILE, skyrimName));
+			}
+		});
 	}
 
 	/** One Minecraft item a rule gives, found in the registries; {@code max} is its stack size. */
@@ -157,7 +178,9 @@ public final class SkyBridge {
 		for (Output o : outputs) {
 			for (int left = count * o.rule().perItem(); left > 0; ) {
 				int n = Math.min(left, o.max());
-				give(player, stack(o.item(), n, o.potion(), o.effects(), o.rule().color(), o.rule().name()));
+				ItemStack stack = stack(o.item(), n, o.potion(), o.effects(), o.rule().color(), o.rule().name());
+				enchant(stack, o.rule().enchantments(), player, it.name());
+				give(player, stack);
 				left -= n;
 			}
 		}
@@ -171,7 +194,7 @@ public final class SkyBridge {
 	private static ItemRules rules() {
 		if (rules == null) {
 			List<String> problems = new ArrayList<>();
-			rules = ItemRules.parse(Config.read(FILE, ItemRules.DEFAULT_TEXT), problems);
+			rules = ItemRules.parse(Config.read(FILE, ItemRules.DEFAULT_TEXT, ItemRules.OLD_DEFAULTS), problems);
 			problems.forEach(p -> SkyCraft.LOG.warn("SkyCraft-loot: {} {}", FILE, p));
 			SkyCraft.LOG.info("SkyCraft-loot: {} conversion rules loaded", rules.size());
 		}

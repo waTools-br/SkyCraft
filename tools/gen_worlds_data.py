@@ -455,18 +455,35 @@ def mob(t, w, n, m=None):
 	return {'type': 'minecraft:' + t, 'count': n if m is None else {'type': 'minecraft:uniform', 'max_inclusive': m, 'min_inclusive': n}, 'weight': w}
 
 
+# Spawn lists follow vanilla 26.3's (plains, snowy plains, desert, river, cold ocean) in each category:
+# slimes in slime chunks underground, glow squid in cave water, cod and salmon as water_ambient, squid as
+# water_creature, drowned in the river and the sea.
 MONSTERS = [mob('spider', 100, 4), mob('zombie', 95, 4), mob('zombie_villager', 5, 1), mob('skeleton', 100, 4), mob('creeper', 100, 4),
-	mob('enderman', 10, 1, 4), mob('witch', 5, 1)]
-COLD_MONSTERS = [mob('spider', 100, 4), mob('zombie', 95, 4), mob('skeleton', 20, 4), mob('stray', 80, 4), mob('creeper', 100, 4),
-	mob('enderman', 10, 1, 4), mob('witch', 5, 1)]
+	mob('slime', 100, 4), mob('enderman', 10, 1, 4), mob('witch', 5, 1)]
+COLD_MONSTERS = [mob('spider', 100, 4), mob('zombie', 95, 4), mob('zombie_villager', 5, 1), mob('skeleton', 20, 4), mob('stray', 80, 4),
+	mob('creeper', 100, 4), mob('slime', 100, 4), mob('enderman', 10, 1, 4), mob('witch', 5, 1)]
+# Solstheim's ash spawn: husks, as in a desert.
+ASH_MONSTERS = [mob('spider', 100, 4), mob('zombie', 19, 4), mob('zombie_villager', 1, 1), mob('husk', 80, 4), mob('skeleton', 100, 4),
+	mob('creeper', 100, 4), mob('slime', 100, 4), mob('enderman', 10, 1, 4), mob('witch', 5, 1)]
+CAVE_WATER = [mob('glow_squid', 10, 4, 6)]
 
 
-def spawns(creature, monster=MONSTERS, water=None):
+def undead_horses(monsters):
+	"""Open plains: zombie horses at night, as in vanilla plains and snowy plains."""
+	out = [mob('zombie', 90, 4) if m['type'] == 'minecraft:zombie' else m for m in monsters]
+	return out + [mob('zombie_horse', 5, 1)]
+
+
+def spawns(creature, monster=MONSTERS, water=None, fish=None, cave_water=None):
 	cats = {'ambient': [mob('bat', 10, 8)], 'monster': monster}
 	if creature:
 		cats['creature'] = creature
 	if water:
 		cats['water_creature'] = water
+	if fish:
+		cats['water_ambient'] = fish
+	if cave_water:
+		cats['underground_water_creature'] = cave_water
 	return {'argument': {'spawn_costs': {}, 'spawns_by_category': cats}, 'modifier': 'overlay'}
 
 
@@ -477,11 +494,13 @@ def music(sound):
 CARVERS = ['minecraft:cave', 'minecraft:cave_extra_underground', 'minecraft:canyon']
 
 
-def biome(temperature, downfall, colors, features, creature, monster=MONSTERS, sound=None, extra_attributes=None, frozen=False, water=None, carvers=CARVERS):
+def biome(temperature, downfall, colors, features, creature, monster=MONSTERS, sound=None, extra_attributes=None, frozen=False, water=None,
+		fish=None, carvers=CARVERS):
 	attributes = {}
 	if sound:
 		attributes['minecraft:audio/background_music'] = music(sound)
-	attributes['minecraft:gameplay/natural_mob_spawns'] = spawns(creature, monster, water)
+	# Glow squid wherever there are caves to hold water.
+	attributes['minecraft:gameplay/natural_mob_spawns'] = spawns(creature, monster, water, fish, CAVE_WATER if carvers else None)
 	attributes['minecraft:visual/sky_color'] = colors['sky']
 	attributes['minecraft:visual/fog_color'] = colors['fog']
 	attributes['minecraft:visual/water_fog_color'] = colors.get('water_fog', '#050533')
@@ -515,7 +534,8 @@ def tamriel_biomes():
 		{'grass': '#c2b25a', 'foliage': '#90a14c', 'dry_foliage': '#a6893e', 'water': '#3d6aa1', 'water_fog': '#0a2a4a', 'sky': '#86a9e2', 'fog': '#cfd8e0'},
 		LAND_BASE + ['skycraft:tundra_boulder', 'skycraft:tundra_pines', 'skycraft:tundra_grass', 'minecraft:patch_grass_plain',
 			'skycraft:tundra_flowers', 'minecraft:patch_sugar_cane'],
-		PASTURE + [mob('horse', 2, 2, 4), mob('rabbit', 4, 2, 3)], sound='minecraft:music.overworld.meadow')
+		PASTURE + [mob('horse', 5, 2, 6), mob('donkey', 1, 1, 3), mob('rabbit', 4, 2, 3)], monster=undead_horses(MONSTERS),
+		sound='minecraft:music.overworld.meadow')
 	b['falkreath_pines'] = biome(0.25, 0.8,
 		{'grass': '#4d7a36', 'foliage': '#3d6a2c', 'water': '#2f5a6b', 'water_fog': '#0b2430', 'sky': '#7f9cc6', 'fog': '#a9b8b2'},
 		LAND_BASE + ['minecraft:forest_rock', 'skycraft:falkreath_spruces', 'minecraft:patch_large_fern', 'skycraft:falkreath_ferns',
@@ -538,7 +558,7 @@ def tamriel_biomes():
 	b['the_pale'] = biome(-0.5, 0.5,
 		{'grass': '#80a69b', 'foliage': '#60866e', 'water': '#3d57d6', 'water_fog': '#050533', 'sky': '#a6b9e2', 'fog': '#e2e8f0'},
 		LAND_BASE + ['skycraft:pale_spruces'],
-		COLD, monster=COLD_MONSTERS, sound='minecraft:music.overworld.snowy_slopes')
+		COLD, monster=undead_horses(COLD_MONSTERS), sound='minecraft:music.overworld.snowy_slopes')
 	b['winterhold_peaks'] = biome(-0.7, 0.9,
 		{'grass': '#80a69b', 'foliage': '#60866e', 'water': '#3938c9', 'water_fog': '#050533', 'sky': '#b5c5ec', 'fog': '#eaf0f8'},
 		LAND_BASE + ['minecraft:spring_lava_frozen'],
@@ -547,19 +567,21 @@ def tamriel_biomes():
 		{'grass': '#8a8a6c', 'foliage': '#7a7a5e', 'water': '#5a6a70', 'water_fog': '#1f262a', 'sky': '#a9a39c', 'fog': '#9d968e'},
 		LAND_BASE + ['minecraft:lake_lava_surface', 'skycraft:ash_boulder', 'skycraft:ash_mushroom_groves', 'minecraft:brown_mushroom_normal',
 			'minecraft:red_mushroom_normal'],
-		[mob('mooshroom', 4, 2, 3)], sound='minecraft:music.nether.basalt_deltas',
+		[mob('mooshroom', 4, 2, 3)], monster=ASH_MONSTERS, sound='minecraft:music.nether.basalt_deltas',
 		extra_attributes={'minecraft:visual/ambient_particles': {
 			'argument': [{'particle': {'type': 'minecraft:white_ash'}, 'probability': 0.02}], 'modifier': 'append'}})
 	b['tamriel_river'] = biome(0.3, 0.5,
 		{'grass': '#7c9a4e', 'foliage': '#5f8a3e', 'water': '#3a6d9e', 'water_fog': '#0b2440', 'sky': '#87a8e0', 'fog': '#cdd6de'},
 		LAND_BASE + ['minecraft:patch_grass_normal', 'minecraft:patch_sugar_cane', 'minecraft:seagrass_river'],
-		[], water=[mob('salmon', 5, 1, 5)])
+		[], monster=MONSTERS + [mob('drowned', 100, 1)], water=[mob('squid', 2, 1, 4)], fish=[mob('salmon', 5, 1, 5)])
 	b['sea_of_ghosts'] = biome(0.0, 0.5,
 		{'water': '#2b4a6b', 'water_fog': '#0e1c2c', 'sky': '#8fa7cd', 'fog': '#c6d1dd'},
 		['minecraft:iceberg_packed', 'minecraft:iceberg_blue', 'minecraft:blue_ice', 'minecraft:amethyst_geode', 'minecraft:monster_room',
 			'minecraft:monster_room_deep', 'minecraft:spring_water', 'minecraft:kelp_cold', 'minecraft:seagrass_cold',
 			'minecraft:freeze_top_layer'] + ORES[:-5] + ORES[-3:],
-		[], water=[mob('salmon', 15, 1, 5), mob('cod', 15, 3, 6), mob('squid', 3, 1, 4)], frozen=True)
+		# Cold ocean life, and polar bears on the ice floes as on a frozen ocean.
+		[mob('polar_bear', 1, 1, 2)], monster=MONSTERS + [mob('drowned', 5, 1)], water=[mob('squid', 3, 1, 4), mob('nautilus', 2, 1)],
+		fish=[mob('cod', 15, 3, 6), mob('salmon', 15, 1, 5)], frozen=True)
 	return b
 
 
@@ -944,6 +966,35 @@ STRUCTURES = {
 }
 
 
+# Vanilla biome tags the Wilds join (added to, never replaced). Structures that suit the holds: mineshafts
+# under every land biome, old camps in the forests, ruined portals (Oblivion's touch) in the mountains,
+# villages where the land is open (plains houses on Whiterun's tundra and in the Rift, spruce ones in
+# Falkreath and Eastmarch, snowy ones in the Pale), outposts on the tundra, in the Reach (Forsworn country)
+# and the Pale, igloos in the snow, trail ruins in the old forests, trial chambers (copper and tuff, as
+# Dwemer as Minecraft gets) under all of it, and wrecks and cold ruins in the Sea of Ghosts. Then the
+# snowy and cold coats on foxes, rabbits and farm animals, and polar bears on the sea's ice floes.
+LAND = ['whiterun_tundra', 'falkreath_pines', 'the_rift', 'eastmarch_springs', 'the_reach', 'the_pale', 'winterhold_peaks', 'solstheim_ash']
+VANILLA_TAGS = {
+	'has_structure/mineshaft': LAND,
+	'has_structure/abandoned_camp_old_growth_spruce_taiga': ['falkreath_pines'],
+	'has_structure/abandoned_camp_dappled_forest': ['the_rift'],
+	'has_structure/ruined_portal_mountain': ['the_reach', 'winterhold_peaks'],
+	'has_structure/village_plains': ['whiterun_tundra', 'the_rift'],
+	'has_structure/village_taiga': ['falkreath_pines', 'eastmarch_springs'],
+	'has_structure/village_snowy': ['the_pale'],
+	'has_structure/pillager_outpost': ['whiterun_tundra', 'the_reach', 'the_pale'],
+	'has_structure/igloo': ['the_pale', 'winterhold_peaks'],
+	'has_structure/trail_ruins': ['falkreath_pines', 'the_rift'],
+	'has_structure/trial_chambers': LAND + ['tamriel_river', 'sea_of_ghosts'],
+	'has_structure/shipwreck': ['sea_of_ghosts'],
+	'has_structure/ocean_ruin_cold': ['sea_of_ghosts'],
+	'spawns_snow_foxes': ['the_pale', 'winterhold_peaks'],
+	'spawns_white_rabbits': ['the_pale', 'winterhold_peaks'],
+	'spawns_cold_variant_farm_animals': ['falkreath_pines', 'eastmarch_springs', 'the_reach', 'the_pale', 'winterhold_peaks'],
+	'polar_bears_spawn_on_alternate_blocks': ['sea_of_ghosts'],
+}
+
+
 def structures():
 	for name, s in STRUCTURES.items():
 		size = s['build']().save(NS + '/structure/%s.nbt' % name)
@@ -978,13 +1029,8 @@ def structures():
 		})
 		write_json(NS + '/tags/worldgen/biome/has_structure/%s.json' % name, {'values': [NS + ':' + b for b in s['biomes']]})
 		print('structure', name, 'size', size)
-	# Vanilla structures that suit the Wilds: mineshafts under every land biome, old camps in the forests,
-	# ruined portals (Oblivion's touch) in the mountains.
-	land = ['whiterun_tundra', 'falkreath_pines', 'the_rift', 'eastmarch_springs', 'the_reach', 'the_pale', 'winterhold_peaks', 'solstheim_ash']
-	write_json('minecraft/tags/worldgen/biome/has_structure/mineshaft.json', {'replace': False, 'values': [NS + ':' + b for b in land]})
-	write_json('minecraft/tags/worldgen/biome/has_structure/abandoned_camp_old_growth_spruce_taiga.json', {'replace': False, 'values': [NS + ':falkreath_pines']})
-	write_json('minecraft/tags/worldgen/biome/has_structure/abandoned_camp_dappled_forest.json', {'replace': False, 'values': [NS + ':the_rift']})
-	write_json('minecraft/tags/worldgen/biome/has_structure/ruined_portal_mountain.json', {'replace': False, 'values': [NS + ':the_reach', NS + ':winterhold_peaks']})
+	for tag, biomes in VANILLA_TAGS.items():
+		write_json('minecraft/tags/worldgen/biome/%s.json' % tag, {'replace': False, 'values': [NS + ':' + b for b in biomes]})
 
 
 def main():

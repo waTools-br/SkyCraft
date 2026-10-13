@@ -14,6 +14,11 @@ import net.minecraft.server.level.ServerPlayer;
  * Minecraft's clock follows Skyrim's, and a full night in a Minecraft bed passes the night in
  * Skyrim too. Minecraft's own time stays frozen (ADVANCE_TIME is off); this sets it from
  * Skyrim's game hour every second. Host only, server thread.
+ *
+ * <p>The mirror, Tamriel Wilds and Home share one clock (their dimension types' default_clock is
+ * minecraft:overworld), so this keeps running while the host is in another world: day and night
+ * there follow Skyrim's hour too (Skyrim's clock runs on while its player is parked), and a bed there
+ * passes Skyrim's night as at home. The Nether has no clock of its own.
  */
 public final class SkyTime {
 	/** Re-set Minecraft's time when it is this many ticks behind Skyrim (about 1.5 Skyrim minutes). */
@@ -54,7 +59,8 @@ public final class SkyTime {
 		if (lastSet >= 0 && drift(target, lastSet) < DRIFT_TICKS) {
 			return;
 		}
-		var source = server.createCommandSourceStack().withSuppressedOutput().withLevel(host.level());
+		// "time set" sets the command level's default clock: the overworld's is the shared one (the Nether has none).
+		var source = server.createCommandSourceStack().withSuppressedOutput().withLevel(server.overworld());
 		server.getCommands().performPrefixedCommand(source, "time set " + target);
 		if (lastSet < 0 || drift(target, lastSet) > 1000) {
 			SkyCraft.LOG.info("SkyCraft-time: Minecraft time set to {} for Skyrim hour {}", target, String.format("%.2f", SKY.gameHour));

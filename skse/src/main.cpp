@@ -61,7 +61,7 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
 	SetupLog();
 	skycraft::CrashLog::Install();
 	skycraft::CoSave::Install();  // co-save callbacks (deep creatures, companions) must be registered at plugin load
-	logger::info("SkyCraft {} loading (runtime {})", "0.1.2-dev11", a_skse->RuntimeVersion().string());
+	logger::info("SkyCraft {} loading (runtime {})", "0.1.2-dev12", a_skse->RuntimeVersion().string());
 	SKSE::GetMessagingInterface()->RegisterListener(OnMessage);
 	// As early as possible: Minecraft takes about as long to start as Skyrim does to reach its menu.
 	skycraft::Launcher::StartMinecraft();

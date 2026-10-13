@@ -38,6 +38,11 @@
               "weight": 100
             },
             {
+              "type": "minecraft:slime",
+              "count": 4,
+              "weight": 100
+            },
+            {
               "type": "minecraft:enderman",
               "count": {
                 "type": "minecraft:uniform",
@@ -50,18 +55,41 @@
               "type": "minecraft:witch",
               "count": 1,
               "weight": 5
+            },
+            {
+              "type": "minecraft:drowned",
+              "count": 1,
+              "weight": 5
+            }
+          ],
+          "creature": [
+            {
+              "type": "minecraft:polar_bear",
+              "count": {
+                "type": "minecraft:uniform",
+                "max_inclusive": 2,
+                "min_inclusive": 1
+              },
+              "weight": 1
             }
           ],
           "water_creature": [
             {
-              "type": "minecraft:salmon",
+              "type": "minecraft:squid",
               "count": {
                 "type": "minecraft:uniform",
-                "max_inclusive": 5,
+                "max_inclusive": 4,
                 "min_inclusive": 1
               },
-              "weight": 15
+              "weight": 3
             },
+            {
+              "type": "minecraft:nautilus",
+              "count": 1,
+              "weight": 2
+            }
+          ],
+          "water_ambient": [
             {
               "type": "minecraft:cod",
               "count": {
@@ -72,13 +100,24 @@
               "weight": 15
             },
             {
-              "type": "minecraft:squid",
+              "type": "minecraft:salmon",
               "count": {
                 "type": "minecraft:uniform",
-                "max_inclusive": 4,
+                "max_inclusive": 5,
                 "min_inclusive": 1
               },
-              "weight": 3
+              "weight": 15
+            }
+          ],
+          "underground_water_creature": [
+            {
+              "type": "minecraft:glow_squid",
+              "count": {
+                "type": "minecraft:uniform",
+                "max_inclusive": 6,
+                "min_inclusive": 4
+              },
+              "weight": 10
             }
           ]
         }

@@ -10,16 +10,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
-import net.minecraft.world.item.enchantment.Enchantments;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Gear drops: a Skyrim actor the player kills sometimes drops the Minecraft version of what it wore, the
@@ -65,17 +63,14 @@ public final class GearDrops {
 		WORN.computeIfAbsent(it.container(), id -> new ArrayList<>()).add(new Worn(it, tick));
 	}
 
-	/** SkyLoot credited the player with killing this actor. */
-	public static void onKill(ServerLevel level, SkyLink.Actor a, int tick) {
+	/** SkyLoot credited {@code killer} (SkyLoot.killer) with killing this actor. */
+	public static void onKill(ServerLevel level, SkyLink.Actor a, @Nullable ServerPlayer killer, int tick) {
 		if (!Features.on(Features.Feature.GEAR_DROPS)) {
 			return;
 		}
 		expire(tick);
 		// Looting on the killer's weapon, as for Minecraft's equipment drops (only a player's counts there too).
-		Player killer = level.getNearestPlayer(a.x(), a.y(), a.z(), 96.0, false);
-		int looting = killer != null
-			? EnchantmentHelper.getEnchantmentLevel(level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.LOOTING), killer)
-			: 0;
+		int looting = killer != null ? SkyLoot.lootingLevel(killer) : 0;
 		Kill kill = new Kill(a.name(), a.x(), a.y(), a.z(), looting, tick);
 		KILLS.put(a.formId(), kill);
 		List<Worn> worn = WORN.remove(a.formId());

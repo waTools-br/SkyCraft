@@ -119,7 +119,7 @@ public final class SkyLoot {
 			if (Features.on(Features.Feature.KILL_DROPS)) {
 				drop(level, a, killer);
 			}
-			GearDrops.onKill(level, a, tick);
+			GearDrops.onKill(level, a, killer, tick);
 		}
 		// An actor the player just hit is remembered alive while it's briefly out of the table (out
 		// of range, Skyrim's table emptied for a frame), so dying there still counts.

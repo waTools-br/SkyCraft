@@ -9,6 +9,9 @@ import net.fabricmc.loader.api.FabricLoader;
 
 /** Editable text files in Minecraft's config folder, written with defaults on first use. */
 public final class Config {
+	/** Marks an old default given by its hash ({@link #untouched}). */
+	public static final String SHA256 = "sha256:";
+
 	private Config() {
 	}
 
@@ -57,14 +60,36 @@ public final class Config {
 		return true;
 	}
 
-	/** Whether {@code text} is one of {@code oldDefaults} as it was shipped. */
+	/**
+	 * Whether {@code text} is one of {@code oldDefaults} as it was shipped. An entry {@code "sha256:<hex>"} stands
+	 * for an old default by the SHA-256 of its text (UTF-8, as {@link #plain} leaves it): long files keep their
+	 * history short that way.
+	 */
 	public static boolean untouched(String text, List<String> oldDefaults) {
+		String hash = null;
 		for (String old : oldDefaults) {
-			if (same(text, old)) {
+			if (old.startsWith(SHA256)) {
+				if (hash == null) {
+					hash = sha256(text);
+				}
+				if (old.substring(SHA256.length()).equalsIgnoreCase(hash)) {
+					return true;
+				}
+			} else if (same(text, old)) {
 				return true;
 			}
 		}
 		return false;
+	}
+
+	/** The SHA-256 of {@code text} as {@link #untouched} compares it, in hex. */
+	public static String sha256(String text) {
+		try {
+			byte[] digest = java.security.MessageDigest.getInstance("SHA-256").digest(plain(text).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+			return java.util.HexFormat.of().formatHex(digest);
+		} catch (java.security.NoSuchAlgorithmException e) {
+			throw new IllegalStateException(e); // every Java has SHA-256
+		}
 	}
 
 	/** Where {@link #upgrade} keeps a replaced file: beside it, with ".old" added to its name. */

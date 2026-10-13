@@ -74,7 +74,7 @@ mc.pitch = f(sky.rotX)
 The MC mod runs a normal singleplayer world ("mirror world") with these properties:
 
 - **Void generator:** there are no MC blocks at all except the ones the player places.
-- `doMobSpawning false`, `doWeatherCycle false`, `doDaylightCycle false`. Time and weather are driven from Skyrim.
+- No natural mob spawning, `doWeatherCycle false`, `doDaylightCycle false`. Time and weather are driven from Skyrim. (The spawn rules are server-wide and on for the other worlds, the `natural_spawns` switch; the mirror refuses spawns itself, see FEATURES.md.)
 - The integrated server runs normally. Physics runs on the client as usual in MC. Because collision injection is common code, the server's movement validation sees the same world and won't rubber-band the player.
 
 ### 5.1 CollisionField: how Skyrim's shape reaches MC physics

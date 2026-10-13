@@ -1,6 +1,7 @@
 package dev.skycraft;
 
 import dev.skycraft.combat.SkyCombat;
+import dev.skycraft.config.Features;
 import net.fabricmc.api.ModInitializer;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -37,13 +38,21 @@ public final class SkyCraft implements ModInitializer {
 		});
 	}
 
-	/** The mirror world is a void that only exists to host the player; Skyrim drives time and spawning. */
+	/**
+	 * The mirror world is a void that only exists to host the player; Skyrim drives time and spawning there.
+	 * With natural_spawns on, animals and monsters spawn the Minecraft way in the other worlds (the Nether,
+	 * Tamriel Wilds, Home): the spawn rules are server-wide, so the mirror turns them away itself
+	 * (ServerChunkCacheSpawnMixin, ServerLevelSpawnMixin, TrialSpawnerMixin).
+	 */
 	private static void configureServer(MinecraftServer server) {
 		GameRules rules = server.getGameRules();
+		boolean spawns = Features.on(Features.Feature.NATURAL_SPAWNS);
 		rules.set(GameRules.ADVANCE_TIME, false, server);
 		rules.set(GameRules.ADVANCE_WEATHER, false, server);
-		rules.set(GameRules.SPAWN_MOBS, false, server);
-		rules.set(GameRules.SPAWN_MONSTERS, false, server);
+		rules.set(GameRules.SPAWN_MOBS, spawns, server);
+		rules.set(GameRules.SPAWN_MONSTERS, spawns, server);
+		// Phantoms, patrols and wandering traders stay off: Minecraft runs their spawners in the overworld,
+		// which is the mirror.
 		rules.set(GameRules.SPAWN_PHANTOMS, false, server);
 		rules.set(GameRules.SPAWN_PATROLS, false, server);
 		rules.set(GameRules.SPAWN_WANDERING_TRADERS, false, server);
@@ -51,8 +60,9 @@ public final class SkyCraft implements ModInitializer {
 		rules.set(GameRules.KEEP_INVENTORY, true, server);
 		rules.set(GameRules.IMMEDIATE_RESPAWN, true, server);
 		rules.set(GameRules.SHOW_ADVANCEMENT_MESSAGES, false, server);
+		server.updateMobSpawningFlags(); // each level's monster spawning follows SPAWN_MONSTERS as set just now
 		server.getCommands().performPrefixedCommand(server.createCommandSourceStack().withSuppressedOutput(), "time set noon");
-		LOG.info("SkyCraft: mirror world configured");
+		LOG.info("SkyCraft: mirror world configured; natural spawning {}", spawns ? "on outside the mirror" : "off");
 	}
 
 	/**

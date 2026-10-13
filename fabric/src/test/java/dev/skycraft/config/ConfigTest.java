@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import dev.skycraft.loot.ItemRules;
 import dev.skycraft.loot.LootRules;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -70,5 +71,26 @@ class ConfigTest {
 		// The default every earlier version shipped, as it was written to players' config folders.
 		assertTrue(LootRules.OLD_DEFAULTS.getFirst().startsWith("# SkyCraft creature drops: what Skyrim creatures drop as Minecraft items when you kill them.\n"));
 		assertTrue(LootRules.OLD_DEFAULTS.getFirst().endsWith("\nhorker = minecraft:salmon 2-3\n"));
+	}
+
+	@Test
+	void anOldDefaultCanBeGivenByItsHash() throws IOException {
+		List<String> old = List.of(Config.SHA256 + Config.sha256(OLD_1));
+		assertTrue(Config.untouched(OLD_1, old));
+		assertTrue(Config.untouched(OLD_1.replace("\n", "\r\n"), old));
+		assertFalse(Config.untouched(OLD_1 + "c = 5\n", old));
+		Path file = this.dir.resolve("skycraft-items.txt");
+		Files.writeString(file, OLD_1);
+		assertTrue(Config.upgrade(file, NEW, old));
+		assertEquals(NEW, Files.readString(file));
+	}
+
+	@Test
+	void itemRulesKnowTheirOldDefaultsButNotTheCurrentOne() {
+		assertEquals(8, ItemRules.OLD_DEFAULTS.size());
+		for (String old : ItemRules.OLD_DEFAULTS) {
+			assertTrue(old.matches("sha256:[0-9a-f]{64}"), old);
+		}
+		assertFalse(Config.untouched(ItemRules.DEFAULT_TEXT, ItemRules.OLD_DEFAULTS));
 	}
 }

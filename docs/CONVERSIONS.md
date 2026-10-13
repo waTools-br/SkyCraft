@@ -453,4 +453,19 @@ Counts below are without Looting. Tables were read from Minecraft 26.3.
 | Skeever | 0-1 rotten flesh, 0-1 rabbit hide | A skeever tail is rotten flesh in item conversion; a small hide |
 | Riekling | 0-1 bone, 0-1 leather | Small and tribal; their spears are the NPC gear drop's |
 
-Creatures that match no rule drop nothing, so people and armed Daedra (bandits, guards, Forsworn, vampires, Dremora) never get creature drops; their gear is a separate feature. Dogs drop nothing either, as in Minecraft.
+### Humanoids
+
+After the creatures and before the giants, so a Vampire Lord matches its own line first and a Vampire this one. People carry coin (gold nuggets: septims are gold coins) and odds and ends. What they wore is a separate feature, the gear drop: each worn piece becomes its SkyCraft tier by kind and material (`GearMap`), for any actor, bandit or creature.
+
+| Creature | Drops | Why |
+|---|---|---|
+| Bandit Chief, Bandit Marauder | 1-2 gold ingots, 3-8 gold nuggets, emerald 25% | The camp's leaders keep its take: gold and now and then a gem |
+| Bandit, Bandit Outlaw, Thug, Highwayman, Plunderer | 1-4 gold nuggets, 0-1 string, 0-1 flint | Coin and a few odds and ends |
+| Forsworn (Briarheart, Forager, Ravager, ...) | 0-2 gold nuggets, 0-2 feathers, 0-1 bone | Little coin; feathers and bone from their headdresses and fetishes |
+| Necromancer | 1-3 gold nuggets, 0-2 bones, amethyst shard 10% | Bones for their work; a soul gem fragment is an amethyst shard in item conversion |
+| Silver Hand | 1-3 gold nuggets, 1-3 iron nuggets | Silver melts to iron nuggets in item conversion |
+| Vampire (any name with the word, but a Vampire Lord) | 0-3 gold nuggets, 0-1 gunpowder | Vampire dust is gunpowder in item conversion |
+| Mage, Battlemage, Wizard, Sorcerer, Conjurer, Pyromancer, Cryomancer, Electromancer, Warlock, Spellsword | 1-3 gold nuggets, 0-1 paper, 0-1 lapis lazuli | Coin, notes, and lapis for enchanting |
+| Guard, Soldier, Legionnaire, Stormcloak | 1-3 gold nuggets, 0-1 bread | A soldier's pay and rations |
+
+Creatures and people that match no rule drop nothing: named NPCs (Lydia) and armed Daedra (Dremora) get no creature drops, only their gear. Dogs drop nothing either, as in Minecraft.

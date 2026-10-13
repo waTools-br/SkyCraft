@@ -17,6 +17,7 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -81,8 +82,11 @@ public final class GearDrops {
 		}
 	}
 
-	/** Forgets what waited too long (or is from before the server started: its ticks begin at 0 again). */
-	private static void expire(int tick) {
+	/**
+	 * Forgets what waited too long (or is from before the server started: its ticks begin at 0 again).
+	 * SkyLoot calls it every second, so gear and kills that never meet don't stay forever.
+	 */
+	public static void expire(int tick) {
 		KILLS.values().removeIf(k -> tick - k.tick() > WAIT_TICKS || tick < k.tick());
 		WORN.values().removeIf(list -> {
 			list.removeIf(w -> tick - w.tick() > WAIT_TICKS || tick < w.tick());
@@ -129,7 +133,8 @@ public final class GearDrops {
 	}
 
 	private static void drop(ServerLevel level, Kill kill, ItemStack stack) {
-		ItemEntity entity = new ItemEntity(level, kill.x(), kill.y() + 0.5, kill.z(), stack);
+		Vec3 at = SkyLoot.dropPosition(level, kill.x(), kill.y(), kill.z());
+		ItemEntity entity = new ItemEntity(level, at.x, at.y, at.z, stack);
 		entity.setDefaultPickUpDelay();
 		level.addFreshEntity(entity);
 	}

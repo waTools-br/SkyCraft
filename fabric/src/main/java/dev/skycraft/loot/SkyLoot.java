@@ -1,12 +1,16 @@
 package dev.skycraft.loot;
 
 import dev.skycraft.SkyCraft;
+import dev.skycraft.SkyDimension;
 import dev.skycraft.combat.SkyCombat;
 import dev.skycraft.combat.SkyrimActorEntity;
 import dev.skycraft.config.Config;
 import dev.skycraft.config.Features;
 import dev.skycraft.link.Proto;
 import dev.skycraft.link.SkyLink;
+import dev.skycraft.world.SkyCollision;
+import dev.skycraft.world.SkyTri;
+import dev.skycraft.world.TriCollider;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -16,6 +20,8 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
@@ -30,10 +36,12 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
@@ -82,6 +90,9 @@ public final class SkyLoot {
 		WAS_DEAD.clear();
 		LAST_HIT.clear();
 		HITTER.clear();
+		// Skyrim reuses form ids across loads and respawns: an actor looted before can be a new one now.
+		LOOTED.clear();
+		SEEN.clear();
 	}
 
 	/** Called with each fresh read of Skyrim's actor table. */
@@ -124,7 +135,8 @@ public final class SkyLoot {
 		// An actor the player just hit is remembered alive while it's briefly out of the table (out
 		// of range, Skyrim's table emptied for a frame), so dying there still counts.
 		WAS_DEAD.keySet().removeIf(id -> !SEEN.contains(id) && !LAST_HIT.containsKey(id));
-		if (!LAST_HIT.isEmpty() && tick % 20 == 0) {
+		if (tick % 20 == 0) {
+			GearDrops.expire(tick);
 			for (Iterator<Map.Entry<Integer, Integer>> it = LAST_HIT.entrySet().iterator(); it.hasNext(); ) {
 				Map.Entry<Integer, Integer> e = it.next();
 				if (tick - e.getValue() > HIT_WINDOW_TICKS * 3) {
@@ -178,7 +190,7 @@ public final class SkyLoot {
 		if (proxy != null && (proxy.isRemoved() || proxy.level() != level)) {
 			proxy = null;
 		}
-		Vec3 corpse = new Vec3(a.x(), a.y() + 0.5, a.z());
+		Vec3 corpse = dropPosition(level, a.x(), a.y(), a.z());
 		List<ItemStack> stacks = new ArrayList<>();
 		for (String table : rule.tables()) {
 			stacks.addAll(rollTable(level, table, a, proxy, killer, corpse));
@@ -247,6 +259,31 @@ public final class SkyLoot {
 			params.withParameter(LootContextParams.DAMAGE_SOURCE, level.damageSources().generic());
 		}
 		return loot.getRandomItems(params.create(LootContextParamSets.ENTITY));
+	}
+
+	/**
+	 * Where items dropped at a corpse with its feet at (x, y, z) appear: half a block up, lifted out of
+	 * any Minecraft block it would be inside (up to the top of the column, MOTION_BLOCKING) and onto
+	 * Skyrim's ground when the corpse sank into it, so they don't fall under the terrain.
+	 */
+	static Vec3 dropPosition(ServerLevel level, double x, double y, double z) {
+		double out = y + 0.5;
+		BlockPos.MutableBlockPos pos = BlockPos.containing(x, out, z).mutable();
+		int top = level.getHeight(Heightmap.Types.MOTION_BLOCKING, pos.getX(), pos.getZ());
+		while (pos.getY() < top && !level.getBlockState(pos).getCollisionShape(level, pos).isEmpty()) {
+			pos.move(Direction.UP);
+			out = pos.getY() + 0.1;
+		}
+		if (SkyDimension.inMirror(level) && SkyCollision.active()) {
+			List<SkyTri> tris = new ArrayList<>();
+			SkyCollision.trianglesNear(new AABB(x - 0.5, y - 1.0, z - 0.5, x + 0.5, y + 2.0, z + 0.5), tris);
+			tris.removeIf(t -> !t.walkable);
+			double ground = TriCollider.groundAt(tris, x, y, z, 1.5);
+			if (!Double.isNaN(ground) && ground + 0.25 > out) {
+				out = ground + 0.25;
+			}
+		}
+		return new Vec3(x, out, z);
 	}
 
 	private static LootRules rules() {

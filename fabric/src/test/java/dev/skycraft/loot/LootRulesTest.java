@@ -43,7 +43,7 @@ class LootRulesTest {
 	@Test
 	void defaultsParseCleanly() {
 		LootRules rules = defaults();
-		assertEquals(61, rules.rules().size());
+		assertEquals(69, rules.rules().size());
 		for (LootRules.Rule rule : rules.rules()) {
 			assertFalse(rule.drops().isEmpty() && rule.tables().isEmpty(), rule.words().toString());
 		}
@@ -154,6 +154,25 @@ class LootRulesTest {
 		expected.put("Venomfang Skeever", "venomfang skeever");
 		expected.put("Skeever", "skeever");
 		expected.put("Riekling", "riekling");
+		// People, after the creatures: chiefs before plain bandits, a vampire lord before vampires.
+		expected.put("Bandit Chief", "bandit chief");
+		expected.put("Bandit Marauder", "bandit chief");
+		expected.put("Bandit", "bandit");
+		expected.put("Bandit Outlaw", "bandit");
+		expected.put("Bandit Highwayman", "bandit");
+		expected.put("Forsworn Briarheart", "forsworn");
+		expected.put("Forsworn Forager", "forsworn");
+		expected.put("Necromancer", "necromancer");
+		expected.put("Silver Hand", "silver hand");
+		expected.put("Vampire", "vampire");
+		expected.put("Vampire Mage", "vampire");
+		expected.put("Fire Mage", "mage");
+		expected.put("Imperial Battlemage", "mage");
+		expected.put("Thalmor Wizard", "mage");
+		expected.put("Conjurer Adept", "mage");
+		expected.put("Whiterun Guard", "guard");
+		expected.put("Imperial Soldier", "guard");
+		expected.put("Stormcloak Soldier", "guard");
 		expected.put("Giant", "giant");
 		expected.put("Karstaag", "giant");
 		for (Map.Entry<String, String> e : expected.entrySet()) {
@@ -162,12 +181,39 @@ class LootRulesTest {
 	}
 
 	@Test
-	void ignoresPeopleAndPartialWords() {
+	void ignoresUnlistedPeopleAndPartialWords() {
 		LootRules rules = defaults();
-		for (String name : List.of("Bandit Marauder", "Lydia", "Whiterun Guard", "Vampire", "Dremora", "Forsworn Briarheart", "Dragonborn", "Frost", "")) {
+		for (String name : List.of("Lydia", "Dremora", "Dragonborn", "Frost", "Silver", "Guardian", "")) {
 			assertNull(rules.match(name), name);
 		}
 		assertNull(rules.match(null));
+	}
+
+	@Test
+	void humanoidsDropCoinAndChiefsTheirTake() {
+		LootRules rules = defaults();
+		LootRules.Rule chief = rules.match("Bandit Marauder");
+		assertEquals(List.of(new LootRules.Drop("minecraft:gold_ingot", 1, 2), new LootRules.Drop("minecraft:gold_nugget", 3, 8),
+			new LootRules.Drop("minecraft:emerald", 1, 1, 25.0F)), chief.drops());
+		assertEquals("minecraft:gold_nugget", rules.match("Bandit Thug").drops().getFirst().item());
+		assertTrue(rules.match("Bandit").drops().stream().noneMatch(d -> d.item().equals("minecraft:emerald")));
+		LootRules.Rule vampire = rules.match("Vampire");
+		assertEquals("vampire", vampire.words().getFirst());
+		assertTrue(vampire != rules.match("Vampire Lord"), "a vampire isn't a vampire lord");
+		assertEquals("vampire lord", line(rules, "Vampire Lord"));
+		for (String name : List.of("Forsworn", "Necromancer", "Silver Hand", "Whiterun Guard", "Fire Mage")) {
+			assertEquals("minecraft:gold_nugget", rules.match(name).drops().getFirst().item(), name);
+			assertTrue(rules.match(name).tables().isEmpty(), name);
+		}
+	}
+
+	@Test
+	void earlierDefaultsUpgrade() {
+		// The defaults before the Humanoids section are an old default by hash, so an unedited file gets the new ones.
+		String text = LootRules.DEFAULT_TEXT;
+		String before = text.substring(0, text.indexOf("# Humanoids.")) + text.substring(text.indexOf("# Giants last"));
+		assertTrue(dev.skycraft.config.Config.untouched(before, LootRules.OLD_DEFAULTS));
+		assertFalse(dev.skycraft.config.Config.untouched(LootRules.DEFAULT_TEXT, LootRules.OLD_DEFAULTS));
 	}
 
 	@Test

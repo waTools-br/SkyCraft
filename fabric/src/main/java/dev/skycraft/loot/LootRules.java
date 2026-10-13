@@ -172,6 +172,19 @@ public final class LootRules {
 		skeever = minecraft:rotten_flesh 0-1, minecraft:rabbit_hide 0-1
 		riekling = minecraft:bone 0-1, minecraft:leather 0-1
 
+		# Humanoids. People carry coin (gold nuggets: septims are gold coins) and odds and ends; what
+		# they wore is the gear drop's. Bandit chiefs and marauders keep the camp's take: gold and now
+		# and then an emerald. Vampires leave vampire dust (gunpowder); a vampire lord matched its own
+		# line above. Necromancers carry soul gem fragments (amethyst shards), mages paper and lapis.
+		bandit chief, marauder = minecraft:gold_ingot 1-2, minecraft:gold_nugget 3-8, minecraft:emerald 1 25%
+		bandit, outlaw, highwayman, plunderer, thug = minecraft:gold_nugget 1-4, minecraft:string 0-1, minecraft:flint 0-1
+		forsworn = minecraft:gold_nugget 0-2, minecraft:feather 0-2, minecraft:bone 0-1
+		necromancer = minecraft:gold_nugget 1-3, minecraft:bone 0-2, minecraft:amethyst_shard 1 10%
+		silver hand = minecraft:gold_nugget 1-3, minecraft:iron_nugget 1-3
+		vampire = minecraft:gold_nugget 0-3, minecraft:gunpowder 0-1
+		mage, battlemage, wizard, sorcerer, conjurer, pyromancer, cryomancer, electromancer, warlock, spellsword = minecraft:gold_nugget 1-3, minecraft:paper 0-1, minecraft:lapis_lazuli 0-1
+		guard, soldier, legionnaire, stormcloak = minecraft:gold_nugget 1-3, minecraft:bread 0-1
+
 		# Giants last, so a Giant Frostbite Spider or Giant Mudcrab matches its own line first. A
 		# giant's toe is rotten flesh in item conversion; giants also hoard a little gold.
 		giant, karstaag = minecraft:bone 1-3, minecraft:leather 0-2, minecraft:rotten_flesh 0-2, minecraft:gold_nugget 0-4
@@ -197,7 +210,9 @@ public final class LootRules {
 		mudcrab, slaughterfish = minecraft:cod 1-2
 		skeever = minecraft:rotten_flesh 1-1
 		horker = minecraft:salmon 2-3
-		""");
+		""",
+		// The Minecraft-counterpart defaults, before the Humanoids section.
+		"sha256:faacf99fcefa260efe26d0793b59efb5ce943298fedfa4aa7cd553a2cc8e390c");
 
 	private final List<Rule> rules;
 

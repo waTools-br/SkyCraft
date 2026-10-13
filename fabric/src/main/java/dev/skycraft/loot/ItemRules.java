@@ -41,7 +41,10 @@ public final class ItemRules {
 	/** Material names, by value (see ItemMaterial in the protocol header). */
 	public static final List<String> MATERIALS = List.of("none", "wood", "iron", "steel", "imperial", "orcish", "dwarven", "elven", "glass", "ebony", "daedric",
 		"dragon", "silver", "hide", "draugr", "falmer");
-	/** Source names, by value (see ItemSource); "looted" means corpse or container, "bought" is Skyrim's shop. */
+	/**
+	 * Source names, by value (see ItemSource); "looted" means corpse or container, "bought" is Skyrim's shop. Gear
+	 * a dying actor wore (5, Proto.SRC_WORN) never reaches the rules: SkyBridge sends it to GearDrops.
+	 */
 	public static final List<String> SOURCES = List.of("world", "corpse", "container", "actor", "bought");
 	/** Vanilla potion ids, as Minecraft 26.3 registers them (net.minecraft.world.item.alchemy.PotionIds). */
 	public static final List<String> POTIONS = List.of("water", "mundane", "thick", "awkward", "night_vision", "long_night_vision", "invisibility",
@@ -711,11 +714,36 @@ public final class ItemRules {
 		tag armor material daedric name gauntlets from bought = skycraft:daedric_greaves 1
 		tag armor material daedric name boots from bought = skycraft:daedric_boots 1
 
-		# Looted iron and steel gear salvages into ingots
+		# Looted gear salvages into its smithing material: one for a weapon, two for armor. Materials without
+		# a SkyCraft ingot take the nearest: Imperial and Ancient Nord (draugr) gear is steel, Falmer gear is
+		# chaurus chitin (turtle scute), silver melts to iron nuggets, dragonbone and dragonscale give ebony
+		# and bone. Every Daedric piece is forged with a Daedra heart and gives it back.
 		tag weapon material iron from looted = minecraft:iron_ingot 1
 		tag weapon material steel from looted = skycraft:steel_ingot 1
+		tag weapon material imperial from looted = skycraft:steel_ingot 1
+		tag weapon material draugr from looted = skycraft:steel_ingot 1
+		tag weapon material orcish from looted = skycraft:orichalcum_ingot 1
+		tag weapon material dwarven from looted = skycraft:dwarven_metal_ingot 1
+		tag weapon material elven from looted = skycraft:refined_moonstone 1
+		tag weapon material glass from looted = skycraft:refined_malachite 1
+		tag weapon material ebony from looted = skycraft:ebony_ingot 1
+		tag weapon material daedric from looted = skycraft:ebony_ingot 1 + skycraft:daedra_heart 1
+		tag weapon material dragon from looted = skycraft:ebony_ingot 1 + minecraft:bone 2
+		tag weapon material falmer from looted = minecraft:turtle_scute 1
+		tag weapon material silver from looted = minecraft:iron_nugget 4
 		tag armor material iron from looted = minecraft:iron_ingot 2
 		tag armor material steel from looted = skycraft:steel_ingot 2
+		tag armor material imperial from looted = skycraft:steel_ingot 2
+		tag armor material draugr from looted = skycraft:steel_ingot 2
+		tag armor material orcish from looted = skycraft:orichalcum_ingot 2
+		tag armor material dwarven from looted = skycraft:dwarven_metal_ingot 2
+		tag armor material elven from looted = skycraft:refined_moonstone 2
+		tag armor material glass from looted = skycraft:refined_malachite 2
+		tag armor material ebony from looted = skycraft:ebony_ingot 2
+		tag armor material daedric from looted = skycraft:ebony_ingot 2 + skycraft:daedra_heart 1
+		tag armor material dragon from looted = skycraft:ebony_ingot 2 + minecraft:bone 4
+		tag armor material falmer from looted = minecraft:turtle_scute 2
+		tag armor material silver from looted = minecraft:iron_nugget 8
 		tag armor material hide from looted = minecraft:leather 2
 
 		# Clothing (pending your call)

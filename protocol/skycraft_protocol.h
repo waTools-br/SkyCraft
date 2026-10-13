@@ -448,7 +448,8 @@ namespace skycraft::proto
 	// ---- item ring @0x1B100 (Skyrim -> MC) ----------------------------------------------------
 	// Every item that lands in the Skyrim player's inventory (looted, picked up, bought, crafted).
 	// Minecraft decides from its rules file whether it becomes a Minecraft item; if it does, it
-	// gives the Minecraft items and sends kEvTakeItem back so Skyrim removes the original.
+	// gives the Minecraft items and sends kEvTakeItem back so Skyrim removes the original. Also the
+	// gear a dying actor wore (kSrcWorn), which stays in Skyrim.
 	inline constexpr std::uint32_t kItemRingEntries = 64;     // power of two
 	inline constexpr std::uint64_t kItemRingHeadOff = 0x00;  // u64, written by Skyrim
 	inline constexpr std::uint64_t kItemRingTailOff = 0x40;  // u64, written by MC
@@ -478,6 +479,32 @@ namespace skycraft::proto
 		kTagSoulFilled = 1u << 18, // a soul gem that holds a soul as it comes (the filled base forms Skyrim sells and loots)
 	};
 
+	// Bits 24-27 of ItemEvent::tags: what kind of weapon or armor piece the item is, as Skyrim types it (a weapon's
+	// type, the biped slots an armor piece or piece of clothing covers), for every item event. Added within version 13:
+	// an older plugin sends 0 (unknown), and an older Minecraft's rules only test the tag bits they name.
+	inline constexpr std::uint32_t kTagKindShift = 24;
+	inline constexpr std::uint32_t kTagKindMask = 0xFu << kTagKindShift;
+
+	enum ItemKind : std::uint32_t
+	{
+		kKindNone = 0,        // not a weapon or armor, or not a kind below (jewelry, a ring or amulet slot only)
+		kKindSword = 1,       // one-handed sword
+		kKindDagger = 2,
+		kKindWarAxe = 3,      // also pickaxes and woodcutter's axes, which Skyrim types as war axes
+		kKindMace = 4,
+		kKindGreatsword = 5,
+		kKindBattleaxe = 6,   // two-handed axe type: battleaxes and warhammers
+		kKindBow = 7,
+		kKindStaff = 8,
+		kKindCrossbow = 9,
+		kKindHandToHand = 10,
+		kKindHelmet = 11,     // armor or clothing on the head, hair, long hair or circlet slot (and not the body)
+		kKindCuirass = 12,    // the body slot
+		kKindGauntlets = 13,  // hands or forearms
+		kKindBoots = 14,      // feet or calves
+		kKindShield = 15,     // the shield slot
+	};
+
 	// Weapon/armor material from WeapMaterial*/ArmorMaterial* keywords.
 	enum ItemMaterial : std::uint8_t
 	{
@@ -493,13 +520,20 @@ namespace skycraft::proto
 		kSrcContainer = 2,  // a chest, barrel, merchant chest, ...
 		kSrcActor = 3,      // a living actor (gift, pickpocket)
 		kSrcBought = 4,     // bought from a merchant (Skyrim's barter menu was open)
+		kSrcWorn = 5,       // Gear drops: worn by an actor in the actor table the frame it died (container = the actor),
+		                    // one event per piece: both hands' weapons, the shield, armor and clothes, the equipped ammo
+		                    // (count = the quiver). It never came into the player's inventory: Minecraft may drop its own
+		                    // gear for it at the corpse, never gives it to the player and never sends kEvTakeItem. count
+		                    // is negated (-1 for a piece) so a Minecraft jar from before this, which skips counts under 1,
+		                    // can't convert it. Not sent for the player's followers or summoned and raised actors. Added
+		                    // within version 13
 	};
 
 	struct ItemEvent
 	{
 		std::uint32_t formId;  // base form of the item
-		std::int32_t  count;
-		std::uint32_t tags;    // ItemTags
+		std::int32_t  count;   // negative for kSrcWorn
+		std::uint32_t tags;    // ItemTags, and the ItemKind in bits 24-27 (kTagKindShift)
 		std::uint8_t  material;  // ItemMaterial
 		std::uint8_t  source;    // ItemSource
 		std::uint8_t  chest;    // 1 when the container is a chest, strongbox or coffer (not a barrel, sack, urn, ...)

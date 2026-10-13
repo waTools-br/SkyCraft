@@ -181,6 +181,36 @@ public final class Proto {
 	public static final int SRC_ACTOR = 3;
 	/** Bought from a merchant in Skyrim's barter menu. */
 	public static final int SRC_BOUGHT = 4;
+	/**
+	 * Worn by an actor that just died (Gear drops; container = the actor): never the player's. Skyrim sends the
+	 * count negated, so a jar from before this (it skips counts under 1) can't hand it over. Added within 13.
+	 */
+	public static final int SRC_WORN = 5;
+	/**
+	 * Bits 24-27 of an item event's tags: the KIND_* of weapon or armor piece, as Skyrim types it (a weapon's type, the
+	 * biped slots armor covers). 0 from an older plugin. Added within 13.
+	 */
+	public static final int TAG_KIND_SHIFT = 24;
+	public static final int TAG_KIND_MASK = 0xF << TAG_KIND_SHIFT;
+	// ItemKind
+	public static final int KIND_NONE = 0;
+	public static final int KIND_SWORD = 1;
+	public static final int KIND_DAGGER = 2;
+	/** Also pickaxes and woodcutter's axes. */
+	public static final int KIND_WAR_AXE = 3;
+	public static final int KIND_MACE = 4;
+	public static final int KIND_GREATSWORD = 5;
+	/** Battleaxes and warhammers. */
+	public static final int KIND_BATTLEAXE = 6;
+	public static final int KIND_BOW = 7;
+	public static final int KIND_STAFF = 8;
+	public static final int KIND_CROSSBOW = 9;
+	public static final int KIND_HAND_TO_HAND = 10;
+	public static final int KIND_HELMET = 11;
+	public static final int KIND_CUIRASS = 12;
+	public static final int KIND_GAUNTLETS = 13;
+	public static final int KIND_BOOTS = 14;
+	public static final int KIND_SHIELD = 15;
 	/** Skyrim skill (ActorValue) trained by trading with a Minecraft merchant screen. */
 	public static final int SKILL_SPEECH = 17;
 	// Skyrim skills (ActorValue) Minecraft reports use of; weapon skills come from EV_HIT_ACTOR.

@@ -28,7 +28,8 @@ import net.minecraft.world.item.alchemy.PotionContents;
  * Looting bridge, Minecraft side. Skyrim reports every item that lands in the player's Skyrim
  * inventory; items that match a conversion rule in {@code config/skycraft-items.txt} are given to
  * the Minecraft player and Skyrim is told to remove the original (EV_TAKE_ITEM). Everything else
- * stays in Skyrim. Server thread only.
+ * stays in Skyrim. Gear a dying actor wore comes the same way but goes to {@link GearDrops}, never
+ * to the player. Server thread only.
  */
 public final class SkyBridge {
 	private static final String FILE = "skycraft-items.txt";
@@ -116,6 +117,11 @@ public final class SkyBridge {
 	}
 
 	private static void convert(ServerPlayer player, SkyLink.Item it) {
+		if (it.source() == Proto.SRC_WORN) {
+			// Gear a dying Skyrim actor wore: never the player's, it only ever drops as Minecraft gear (Gear drops).
+			GearDrops.onWorn(player.level(), it, player.level().getServer().getTickCount());
+			return;
+		}
 		if (it.count() <= 0) {
 			return;
 		}

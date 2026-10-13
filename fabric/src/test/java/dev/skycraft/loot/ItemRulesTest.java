@@ -67,7 +67,63 @@ class ItemRulesTest {
 		assertEquals("keep", convert(rules, tags("weapon"), 3, WORLD, "Steel Sword"));
 		assertEquals("skycraft:steel_ingot 1", convert(rules, tags("weapon"), 3, CONTAINER, "Steel Sword"));
 		assertEquals("skycraft:steel_ingot 2", convert(rules, tags("armor"), 3, CORPSE, "Steel Armor"));
-		assertEquals("keep", convert(rules, tags("weapon"), 9, CORPSE, "Ebony Sword"));
+		assertEquals("skycraft:ebony_ingot 1", convert(rules, tags("weapon"), 9, CORPSE, "Ebony Sword"));
+		assertEquals("keep", convert(rules, tags("weapon"), 9, ACTOR, "Ebony Sword"));
+	}
+
+	@Test
+	void theItemKindBitsChangeNoRule() {
+		ItemRules rules = defaults();
+		int bow = dev.skycraft.link.Proto.KIND_BOW << dev.skycraft.link.Proto.TAG_KIND_SHIFT;
+		int shield = dev.skycraft.link.Proto.KIND_SHIELD << dev.skycraft.link.Proto.TAG_KIND_SHIFT;
+		assertEquals("skycraft:steel_sword 1", convert(rules, tags("weapon") | bow, material("steel"), BOUGHT, "Steel Sword"));
+		assertEquals("skycraft:steel_ingot 1", convert(rules, tags("weapon") | bow, material("steel"), CORPSE, "Steel Sword"));
+		assertEquals("minecraft:bow 1", convert(rules, tags("weapon") | bow, material("steel"), CORPSE, "Hunting Bow"));
+		assertEquals("minecraft:iron_ingot 2", convert(rules, tags("armor") | shield, material("iron"), CORPSE, "Iron Shield"));
+		assertEquals("minecraft:potato 1", convert(rules, tags("food") | shield, 0, CONTAINER, "Potato"));
+		assertEquals("weapon", ItemRules.tagNames(tags("weapon") | bow));
+	}
+
+	private static String salvage(ItemRules rules, String tag, String material, String name) {
+		return rules.match(new ItemRules.Item(tags(tag), material(material), CORPSE, name)).describe();
+	}
+
+	@Test
+	void lootedGearOfEveryMaterialSalvages() {
+		ItemRules rules = defaults();
+		assertEquals("minecraft:iron_ingot 1", salvage(rules, "weapon", "iron", "Iron War Axe"));
+		assertEquals("skycraft:steel_ingot 1", salvage(rules, "weapon", "imperial", "Imperial Sword"));
+		assertEquals("skycraft:steel_ingot 1", salvage(rules, "weapon", "draugr", "Ancient Nord Sword"));
+		assertEquals("skycraft:orichalcum_ingot 1", salvage(rules, "weapon", "orcish", "Orcish Dagger"));
+		assertEquals("skycraft:dwarven_metal_ingot 1", salvage(rules, "weapon", "dwarven", "Dwarven Mace"));
+		assertEquals("skycraft:refined_moonstone 1", salvage(rules, "weapon", "elven", "Elven Greatsword"));
+		assertEquals("skycraft:refined_malachite 1", salvage(rules, "weapon", "glass", "Glass Warhammer"));
+		assertEquals("skycraft:ebony_ingot 1", salvage(rules, "weapon", "ebony", "Ebony Battleaxe"));
+		assertEquals("skycraft:ebony_ingot 1 + skycraft:daedra_heart 1", salvage(rules, "weapon", "daedric", "Daedric Sword"));
+		assertEquals("skycraft:ebony_ingot 1 + minecraft:bone 2", salvage(rules, "weapon", "dragon", "Dragonbone Dagger"));
+		assertEquals("minecraft:turtle_scute 1", salvage(rules, "weapon", "falmer", "Honed Falmer Sword"));
+		assertEquals("minecraft:iron_nugget 4", salvage(rules, "weapon", "silver", "Silver Greatsword"));
+		assertEquals("minecraft:iron_ingot 2", salvage(rules, "armor", "iron", "Iron Gauntlets"));
+		assertEquals("skycraft:steel_ingot 2", salvage(rules, "armor", "imperial", "Imperial Light Armor"));
+		assertEquals("skycraft:steel_ingot 2", salvage(rules, "armor", "draugr", "Ancient Nord Helmet"));
+		assertEquals("skycraft:orichalcum_ingot 2", salvage(rules, "armor", "orcish", "Orcish Boots"));
+		assertEquals("skycraft:dwarven_metal_ingot 2", salvage(rules, "armor", "dwarven", "Dwarven Shield"));
+		assertEquals("skycraft:refined_moonstone 2", salvage(rules, "armor", "elven", "Elven Gilded Armor"));
+		assertEquals("skycraft:refined_malachite 2", salvage(rules, "armor", "glass", "Glass Helmet"));
+		assertEquals("skycraft:ebony_ingot 2", salvage(rules, "armor", "ebony", "Ebony Armor"));
+		assertEquals("skycraft:ebony_ingot 2 + skycraft:daedra_heart 1", salvage(rules, "armor", "daedric", "Daedric Armor"));
+		assertEquals("skycraft:ebony_ingot 2 + minecraft:bone 4", salvage(rules, "armor", "dragon", "Dragonplate Armor"));
+		assertEquals("minecraft:turtle_scute 2", salvage(rules, "armor", "falmer", "Falmer Helmet"));
+		assertEquals("minecraft:leather 2", salvage(rules, "armor", "hide", "Studded Armor"));
+		// Bows, pickaxes and arrows keep their own rules, wherever they come from.
+		assertEquals("minecraft:bow 1", salvage(rules, "weapon", "orcish", "Orcish Bow"));
+		assertEquals("minecraft:crossbow 1", salvage(rules, "weapon", "dwarven", "Dwarven Crossbow"));
+		assertEquals("minecraft:iron_pickaxe 1", salvage(rules, "weapon", "iron", "Pickaxe"));
+		// Gear of no known material (Forsworn, Nordic, Stalhrim) and staffs still stay.
+		assertEquals("keep", salvage(rules, "weapon", "none", "Forsworn Axe"));
+		assertEquals("keep", salvage(rules, "weapon", "none", "Staff of Firebolts"));
+		// Bought gear is still the gear itself.
+		assertEquals("skycraft:daedric_sword 1", convert(rules, tags("weapon"), material("daedric"), BOUGHT, "Daedric Sword"));
 	}
 
 	@Test
@@ -138,8 +194,8 @@ class ItemRulesTest {
 		assertEquals("skycraft:dwarven_metal_ingot 3", convert(rules, tags("clutter"), 0, WORLD, "Large Dwemer Strut"));
 		// Corundum still feeds copper, which the orichalcum and dwarven ingot recipes use.
 		assertEquals("minecraft:copper_ingot 1", convert(rules, tags("oreingot"), 0, WORLD, "Corundum Ingot"));
-		// Looted gear of the higher tiers stays in Skyrim (only iron and steel salvage).
-		assertEquals("keep", convert(rules, tags("weapon"), 10, CORPSE, "Daedric Sword"));
+		// Looted gear of the higher tiers salvages into these too.
+		assertEquals("skycraft:ebony_ingot 1", convert(rules, tags("weapon"), 10, CORPSE, "Daedric Sword"));
 	}
 
 	@Test

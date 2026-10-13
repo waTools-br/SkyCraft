@@ -9,6 +9,7 @@ SKYCRAFT_TOWN (default Whiterun) and SKYCRAFT_PLACE (PlaceFlags: 1 interior, 2 d
 default 4) set where the fake player is; SKYCRAFT_PLACE=3 makes it a dungeon interior.
 SKYCRAFT_CARRIED (CarriedFlags, default 0; 1 = an Elder Scroll) sets SkyState.carried.
 SKYCRAFT_COMPANION=1 adds a wild wolf to tame with bones (Companions): see COMPANION below.
+SKYCRAFT_GEAR=1 kills the fake bandit you punch and sends what it wore (Gear drops): see GEAR below.
 
 Breach doors: outside (no interior place flag) it publishes two dungeon entrances near the fake
 player, a Nordic crypt 40 blocks east and a mine 60 blocks south, and prints the kEvEnterDungeon
@@ -71,7 +72,7 @@ EV_PORTAL_TRAVEL = 11  # portal network: printed, not acted on (a real Skyrim mo
 EV_COMPANION = 14  # companions: answered for the fake wolf (SKYCRAFT_COMPANION=1)
 COMPANION_TAME, COMPANION_FOLLOW, COMPANION_WAIT, COMPANION_HEAL = 1, 2, 3, 4
 # ActorFlags and AnimalKind (skycraft_protocol.h)
-ACTOR_HOSTILE, ACTOR_COMPANION, ACTOR_COMPANION_WAITING = 1, 1 << 5, 1 << 6
+ACTOR_HOSTILE, ACTOR_DEAD, ACTOR_COMPANION, ACTOR_COMPANION_WAITING = 1, 1 << 1, 1 << 5, 1 << 6
 ACTOR_KIND_SHIFT = 8
 ANIMAL_DOG, ANIMAL_WOLF, ANIMAL_HORSE = 1, 2, 3
 # Companions: SKYCRAFT_COMPANION=1 publishes a wild wolf five blocks behind the fake bandit (west of the start). Give
@@ -80,7 +81,25 @@ ANIMAL_DOG, ANIMAL_WOLF, ANIMAL_HORSE = 1, 2, 3
 COMPANION = os.environ.get("SKYCRAFT_COMPANION", "0") != "0"
 FAKE_WOLF = 0xFF00ABCE
 SRC_CONTAINER = 2
+SRC_WORN = 5
 TAG_ORE_INGOT = 1 << 3
+TAG_WEAPON, TAG_ARMOR, TAG_ARROW = 1 << 7, 1 << 8, 1 << 13
+# ItemKind in tags bits 24-27 (kTagKindShift): what Skyrim types the piece as
+TAG_KIND_SHIFT = 24
+KIND_SWORD, KIND_BOW, KIND_HELMET, KIND_BOOTS = 1, 7, 11, 14
+MAT_IRON, MAT_STEEL, MAT_HIDE = 2, 3, 13
+# Gear drops: SKYCRAFT_GEAR=1 kills the fake bandit at t=6 s, after the script's punch, and sends what it wore as worn
+# ItemEvents (count negated, container = the bandit), as Loot.cpp does. Minecraft credits the kill and rolls each piece
+# at 8.5%; put "chance = 1" in config/skycraft-gear-drops.txt to see every piece drop at the corpse.
+GEAR = os.environ.get("SKYCRAFT_GEAR", "0") != "0"
+FAKE_BANDIT = 0xFF00ABCD
+FAKE_BANDIT_GEAR = [
+    (0x00012EB7, 1, TAG_WEAPON | KIND_SWORD << TAG_KIND_SHIFT, MAT_IRON, "Iron Sword"),
+    (0x00012E4D, 1, TAG_ARMOR | KIND_HELMET << TAG_KIND_SHIFT, MAT_IRON, "Iron Helmet"),
+    (0x00013910, 1, TAG_ARMOR | KIND_BOOTS << TAG_KIND_SHIFT, MAT_HIDE, "Hide Boots"),
+    (0x00013985, 1, TAG_WEAPON | KIND_BOW << TAG_KIND_SHIFT, MAT_STEEL, "Hunting Bow"),
+    (0x0001397D, 12, TAG_ARROW, MAT_IRON, "Iron Arrow"),
+]
 
 # BreachTheme / BreachFlags (skycraft_protocol.h)
 THEME_CAVE, THEME_NORDIC, THEME_DWEMER, THEME_FALMER, THEME_MINE, THEME_FORT, THEME_LAIR = range(7)
@@ -210,10 +229,10 @@ class Link:
             tail += (8 + n + 7) & ~7
         struct.pack_into("<Q", self.m, base + 0x40, tail)
 
-    def write_actor(self, form, x, y, z, vendor=0, name="Test Bandit"):
-        """One hostile actor; vendor is its VendorBuys mask (0: not a merchant). With SKYCRAFT_COMPANION=1 the fake
-        wolf is published beside it."""
-        actors = [(form, ACTOR_HOSTILE, x, y, z, 0.6, 1.8, vendor, name)]
+    def write_actor(self, form, x, y, z, vendor=0, name="Test Bandit", dead=False):
+        """One hostile actor (or its corpse); vendor is its VendorBuys mask (0: not a merchant). With
+        SKYCRAFT_COMPANION=1 the fake wolf is published beside it."""
+        actors = [(form, ACTOR_DEAD if dead else ACTOR_HOSTILE, x, y, z, 0.6, 1.8, vendor, name)]
         if COMPANION:
             actors.append(self.fake_wolf(x - 5.0, y, z))
         self.write_actors(actors)
@@ -442,6 +461,7 @@ def main():
     yaw = -90.0  # facing +X
     pitch = 10.0
     script_t0 = None
+    gear_sent = False
     last_print = 0
     saved = False
     checked = False
@@ -480,7 +500,12 @@ def main():
         if script_t0 is not None:
             t = time.time() - script_t0
             # A fake NPC two blocks ahead: punch it, then have it hit back.
-            link.write_actor(0xFF00ABCD, X0 + 2.5, FLOOR_Y, 0.5)
+            link.write_actor(FAKE_BANDIT, X0 + 2.5, FLOOR_Y, 0.5, dead=GEAR and t >= 6.0)
+            if GEAR and 6.0 <= t and not gear_sent:
+                gear_sent = True
+                for form, count, tags, material, name in FAKE_BANDIT_GEAR:
+                    link.push_item(form, -count, tags, name, material=material, source=SRC_WORN, chest=0, container=FAKE_BANDIT)
+                print(f"the fake bandit died wearing {', '.join(g[4] for g in FAKE_BANDIT_GEAR)} (worn ItemEvents sent)")
             for click in (0.8, 1.5):  # the first click only grabs the mouse, like focusing a window
                 if click <= t < click + 0.05:
                     link.push_input(2, 1, 1)  # left mouse down

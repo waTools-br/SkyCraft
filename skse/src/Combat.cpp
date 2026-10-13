@@ -174,7 +174,7 @@ namespace skycraft
 			}
 		}
 
-		void WriteActorTable(RE::PlayerCharacter* a_player)
+		void WriteActorTable(RE::PlayerCharacter* a_player, float a_delta)
 		{
 			static std::vector<proto::ActorRecord> records;
 			records.clear();
@@ -215,11 +215,13 @@ namespace skycraft
 				}
 				r.vendor = actor->IsDead() ? 0 : WorldState::VendorMask(actor);
 				records.push_back(r);
+				Loot::WatchWorn(actor, a_delta);  // what it wears, sent to Minecraft the frame it dies (Gear drops)
 				if (records.size() >= proto::kMaxActors) {
 					break;
 				}
 			}
 			Link::Get().WriteActors(records.data(), static_cast<std::uint32_t>(records.size()));
+			Loot::SendWorn(a_delta);
 		}
 
 		// ---- Skyrim's own hit pipeline ---------------------------------------------------------
@@ -885,6 +887,7 @@ namespace skycraft
 				pendingExplosions.clear();
 				pendingFlings.clear();
 				link.WriteActors(nullptr, 0);
+				Loot::ForgetWorn();
 				Spawn::Update(a_player, a_delta);
 				Breach::Update(a_player, a_delta);
 				Travel::Update(a_player, a_delta);
@@ -894,7 +897,7 @@ namespace skycraft
 			// Skyrim can't kill the player while Minecraft decides: one huge hit knocks them down
 			// (essential) for a moment instead, and Minecraft's health does the rest.
 			SetEssential(a_player, true);
-			WriteActorTable(a_player);
+			WriteActorTable(a_player, a_delta);
 			engagedTimer -= a_delta;
 			if (engagedTimer <= 0.0f) {
 				engagedTimer = 0.25f;

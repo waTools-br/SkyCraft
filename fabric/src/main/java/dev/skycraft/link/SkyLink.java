@@ -628,6 +628,10 @@ public final class SkyLink {
 
 	/** An item that landed in the Skyrim player's inventory (see ItemEvent in the protocol header). */
 	public record Item(int formId, int count, int tags, int material, int source, String name, int container, boolean chest, boolean quest) {
+		/** The Proto.KIND_* of weapon or armor piece Skyrim says it is (tags bits 24-27), 0 when it doesn't say. */
+		public int kind() {
+			return (this.tags & Proto.TAG_KIND_MASK) >>> Proto.TAG_KIND_SHIFT;
+		}
 	}
 
 	/**
